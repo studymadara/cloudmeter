@@ -4,11 +4,7 @@ import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatchers;
 
-import java.io.File;
 import java.lang.instrument.Instrumentation;
-import java.net.URL;
-import java.security.ProtectionDomain;
-import java.util.jar.JarFile;
 
 /**
  * Installs Byte Buddy HTTP instrumentation into the running JVM.
@@ -30,11 +26,15 @@ public final class HttpInstrumentation {
     private HttpInstrumentation() {}
 
     /**
-     * Injects the agent JAR into the bootstrap classloader and installs Byte Buddy transformers.
+     * Installs Byte Buddy transformers.
      * Called once from {@link AgentMain#doInitialize}.
+     *
+     * Note: bootstrap injection is intentionally skipped. HttpServlet is loaded by the
+     * application classloader which delegates to the system classloader — agent types
+     * on the system classpath are therefore visible to the inlined advice bytecode
+     * without needing bootstrap-level visibility.
      */
     public static void install(Instrumentation inst) {
-        injectBootstrap(inst);
         buildAndInstall(new AgentBuilder.Default(), inst);
     }
 
@@ -54,26 +54,5 @@ public final class HttpInstrumentation {
             .installOn(inst);
     }
 
-    /**
-     * Appends the agent JAR to the bootstrap classloader search path so that CloudMeter
-     * classes (collector, registry, etc.) are visible from all application classloaders.
-     * This is required for the inlined advice bytecode to resolve our types at runtime.
-     *
-     * Silently skips if the agent is running from an exploded directory (e.g. during tests).
-     */
-    static void injectBootstrap(Instrumentation inst) {
-        try {
-            ProtectionDomain pd = HttpInstrumentation.class.getProtectionDomain();
-            if (pd == null || pd.getCodeSource() == null) return;
-            URL location = pd.getCodeSource().getLocation();
-            if (location == null) return;
-            File agentJar = new File(location.toURI());
-            if (agentJar.isFile()) {
-                inst.appendToBootstrapClassLoaderSearch(new JarFile(agentJar));
-                CloudMeterLogger.info("Agent JAR injected into bootstrap classloader: " + agentJar);
-            }
-        } catch (Throwable t) {
-            CloudMeterLogger.warn("Bootstrap injection skipped: " + t.getMessage());
-        }
-    }
+
 }
