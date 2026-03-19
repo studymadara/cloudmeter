@@ -1,0 +1,28 @@
+// Spring Boot 2.x smoke test — verifies the agent works against the legacy
+// javax.servlet stack (Spring Boot 2.7.x / Servlet 4.x / Tomcat 9.x).
+// NOT included in CI / JaCoCo enforcement — manual test harness only.
+
+plugins {
+    id 'org.springframework.boot' version '2.7.18'
+    id 'io.spring.dependency-management' version '1.1.4'
+}
+
+// Spring Boot 2.7.x supports Java 8–17.
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule { limit { minimum = 0.00 } }
+    }
+}
+
+bootJar {
+    archiveFileName = 'smoke-test-sb2-app.jar'
+}
