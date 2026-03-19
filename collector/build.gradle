@@ -1,8 +1,29 @@
 // Collector module — core data structures, MetricsStore, RouteStatsCalculator
 // No external dependencies; pure Java 8 compatible code.
+apply plugin: 'com.github.spotbugs'
+
 dependencies {
     // none beyond test deps inherited from root
 }
+
+spotbugs {
+    toolVersion = '4.8.6'
+    ignoreFailures = false
+    // Effort and reportLevel use Enum.valueOf to avoid Groovy import-shadowing issues
+    // that occur when 'Confidence' resolves to java.lang.Class inside the extension block.
+    effort.set(Enum.valueOf(com.github.spotbugs.snom.Effort, 'MAX'))
+    reportLevel.set(Enum.valueOf(com.github.spotbugs.snom.Confidence, 'HIGH'))
+}
+
+spotbugsMain {
+    reports {
+        html.required = true
+        xml.required  = false
+    }
+}
+
+// Don't analyse test code — test helpers often use patterns SpotBugs dislikes
+spotbugsTest.enabled = false
 
 jacocoTestCoverageVerification {
     violationRules {

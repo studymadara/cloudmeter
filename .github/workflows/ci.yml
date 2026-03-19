@@ -31,6 +31,9 @@ jobs:
       - name: Build
         run: ./gradlew build -x test
 
+      - name: Static analysis (SpotBugs)
+        run: ./gradlew :collector:spotbugsMain
+
       - name: Run tests with coverage
         run: ./gradlew test jacocoTestReport jacocoTestCoverageVerification
 
