@@ -9,6 +9,8 @@
 
 CloudMeter is an open source Java agent that attaches to your running JVM and tells you exactly what each of your API endpoints costs to run on AWS, GCP, or Azure — without any code changes.
 
+![CloudMeter Dashboard](docs/screenshots/dashboard.png)
+
 ---
 
 ## The problem

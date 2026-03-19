@@ -39,6 +39,8 @@ Navigate to [http://localhost:7777](http://localhost:7777).
 
 You'll see the live dashboard. Metrics start accumulating immediately as your app handles traffic.
 
+![CloudMeter Dashboard](../screenshots/dashboard.png)
+
 ## 4. Record a session
 
 1. Click **Start Recording** — this resets the metrics store and begins accumulating fresh data
