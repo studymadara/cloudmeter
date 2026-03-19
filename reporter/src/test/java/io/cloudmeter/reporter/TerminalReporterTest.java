@@ -29,7 +29,7 @@ class TerminalReporterTest {
         List<ScalePoint> curve = Arrays.asList(
                 new ScalePoint(100, 1.0), new ScalePoint(1_000, 10.0));
         return new EndpointCostProjection(route, 1.0, 100.0, monthly,
-                monthly / 1_000, inst, curve, exceeds);
+                monthly / 1_000, inst, curve, exceeds, 30.0, 0.005);
     }
 
     private static String capture(List<EndpointCostProjection> projs, ProjectionConfig cfg) {

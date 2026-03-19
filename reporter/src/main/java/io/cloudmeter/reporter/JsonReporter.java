@@ -75,6 +75,8 @@ public final class JsonReporter {
         sb.append("      \"projectedMonthlyCostUsd\": ").append(round2(p.getProjectedMonthlyCostUsd())).append(",\n");
         sb.append("      \"projectedCostPerUserUsd\": ").append(round6(p.getProjectedCostPerUserUsd())).append(",\n");
         sb.append("      \"recommendedInstance\": ").append(quote(p.getRecommendedInstance().getName())).append(",\n");
+        sb.append("      \"medianDurationMs\": ").append(round2(p.getMedianDurationMs())).append(",\n");
+        sb.append("      \"medianCpuMs\": ").append(round2(p.getMedianCpuCoreSecondsPerReq() * 1000.0)).append(",\n");
         sb.append("      \"exceedsBudget\": ").append(p.isExceedsBudget()).append(",\n");
         sb.append("      \"costCurve\": [\n");
         List<ScalePoint> curve = p.getCostCurve();

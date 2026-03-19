@@ -147,34 +147,35 @@ volumes:
 
 ---
 
-## Dynamic attach (no restart required)
+## Dynamic attach (v2)
 
-```bash
-# Attach to an already-running JVM
-cloudmeter attach <pid>
+Dynamic attach (`agentmain`) is implemented in the agent JAR but the CLI command
+(`cloudmeter attach <pid>`) is not yet available in v0.1.0. Use the `-javaagent` flag
+at JVM startup for now. Dynamic attach without restart is planned for v0.2.0.
 
-# Find the PID
-jps -l
-```
+If you need it today, you can trigger `agentmain` manually via any JVM attach tool
+(e.g. `jattach`) using the fat JAR as the agent.
 
 ---
 
 ## Configuration
 
-```yaml
-# cloudmeter.yaml — place in working directory
-provider: aws          # aws | gcp | azure
-region: us-east-1
-target_users: 10000    # scale projections to this user count
-requests_per_user_per_second: 0.5
-budget: 500            # monthly USD — dashboard marks the threshold on the cost curve
-port: 7777
+All configuration is passed as agent args — a comma-separated `key=value` string after the JAR path:
 
-# Optional: explicit route map for raw Servlet or unrecognised frameworks
-routes:
-  - GET /api/users/*
-  - POST /api/orders/*
+```bash
+-javaagent:cloudmeter-agent.jar=provider=AWS,region=us-east-1,targetUsers=10000,budget=500,port=7777
 ```
+
+| Key | Default | Values |
+|---|---|---|
+| `provider` | `AWS` | `AWS`, `GCP`, `AZURE` |
+| `region` | `us-east-1` | Any region string (pricing uses nearest known region) |
+| `targetUsers` | `1000` | Integer — concurrent users to project at |
+| `rpu` | `1.0` | Requests per user per second |
+| `budget` | `0` | Monthly USD threshold (0 = disabled) |
+| `port` | `7777` | Dashboard HTTP port |
+
+> File-based `cloudmeter.yaml` configuration is planned for v0.2.0.
 
 ---
 

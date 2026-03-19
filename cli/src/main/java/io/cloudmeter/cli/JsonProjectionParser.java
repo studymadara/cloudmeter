@@ -31,6 +31,8 @@ final class JsonProjectionParser {
     private static final Pattern MONTHLY_PAT   = Pattern.compile("\"projectedMonthlyCostUsd\"\\s*:\\s*([0-9.E+-]+)");
     private static final Pattern PER_USER_PAT  = Pattern.compile("\"projectedCostPerUserUsd\"\\s*:\\s*([0-9.E+-]+)");
     private static final Pattern INSTANCE_PAT  = Pattern.compile("\"recommendedInstance\"\\s*:\\s*\"([^\"]+)\"");
+    private static final Pattern DURATION_PAT  = Pattern.compile("\"medianDurationMs\"\\s*:\\s*([0-9.E+-]+)");
+    private static final Pattern CPU_MS_PAT    = Pattern.compile("\"medianCpuMs\"\\s*:\\s*([0-9.E+-]+)");
     private static final Pattern EXCEEDS_PAT   = Pattern.compile("\"exceedsBudget\"\\s*:\\s*(true|false)");
     private static final Pattern CURVE_USERS_PAT = Pattern.compile("\"users\"\\s*:\\s*([0-9]+)");
     private static final Pattern CURVE_COST_PAT  = Pattern.compile("\"monthlyCostUsd\"\\s*:\\s*([0-9.E+-]+)");
@@ -57,6 +59,8 @@ final class JsonProjectionParser {
         double monthly     = extractDouble(MONTHLY_PAT, seg, 0.0);
         double perUser     = extractDouble(PER_USER_PAT, seg, 0.0);
         String instName    = extract(INSTANCE_PAT, seg);
+        double durationMs  = extractDouble(DURATION_PAT, seg, 0.0);
+        double cpuMs       = extractDouble(CPU_MS_PAT, seg, 0.0);
         // Re-evaluate against the CLI-supplied budget when one is set; otherwise
         // trust the flag the dashboard computed server-side.
         boolean exceeds = config.getBudgetUsd() > 0
@@ -68,7 +72,7 @@ final class JsonProjectionParser {
 
         InstanceType inst = resolveInstance(instName, config.getProvider());
         return new EndpointCostProjection(route, obsRps, projRps, monthly, perUser,
-                inst, curve, exceeds);
+                inst, curve, exceeds, durationMs, cpuMs / 1000.0);
     }
 
     private static List<ScalePoint> parseCurve(String seg) {

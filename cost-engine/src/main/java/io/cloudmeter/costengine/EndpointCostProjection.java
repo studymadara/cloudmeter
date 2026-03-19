@@ -22,6 +22,8 @@ public final class EndpointCostProjection {
     private final InstanceType  recommendedInstance;       // cheapest instance meeting CPU need
     private final List<ScalePoint> costCurve;              // 12 points, 100 → 1 M users
     private final boolean       exceedsBudget;             // true if monthlyCost > budgetUsd
+    private final double        medianDurationMs;          // median request duration in ms
+    private final double        medianCpuCoreSecondsPerReq; // median CPU core-seconds per request
 
     public EndpointCostProjection(
             String routeTemplate,
@@ -31,27 +33,33 @@ public final class EndpointCostProjection {
             double projectedCostPerUserUsd,
             InstanceType recommendedInstance,
             List<ScalePoint> costCurve,
-            boolean exceedsBudget) {
+            boolean exceedsBudget,
+            double medianDurationMs,
+            double medianCpuCoreSecondsPerReq) {
 
-        this.routeTemplate           = Objects.requireNonNull(routeTemplate, "routeTemplate");
-        this.recommendedInstance     = Objects.requireNonNull(recommendedInstance, "recommendedInstance");
-        this.costCurve               = Collections.unmodifiableList(
+        this.routeTemplate              = Objects.requireNonNull(routeTemplate, "routeTemplate");
+        this.recommendedInstance        = Objects.requireNonNull(recommendedInstance, "recommendedInstance");
+        this.costCurve                  = Collections.unmodifiableList(
                 Objects.requireNonNull(costCurve, "costCurve"));
-        this.observedRps             = observedRps;
-        this.projectedRps            = projectedRps;
-        this.projectedMonthlyCostUsd = projectedMonthlyCostUsd;
-        this.projectedCostPerUserUsd = projectedCostPerUserUsd;
-        this.exceedsBudget           = exceedsBudget;
+        this.observedRps                = observedRps;
+        this.projectedRps               = projectedRps;
+        this.projectedMonthlyCostUsd    = projectedMonthlyCostUsd;
+        this.projectedCostPerUserUsd    = projectedCostPerUserUsd;
+        this.exceedsBudget              = exceedsBudget;
+        this.medianDurationMs           = medianDurationMs;
+        this.medianCpuCoreSecondsPerReq = medianCpuCoreSecondsPerReq;
     }
 
-    public String        getRouteTemplate()           { return routeTemplate; }
-    public double        getObservedRps()              { return observedRps; }
-    public double        getProjectedRps()             { return projectedRps; }
-    public double        getProjectedMonthlyCostUsd()  { return projectedMonthlyCostUsd; }
-    public double        getProjectedCostPerUserUsd()  { return projectedCostPerUserUsd; }
-    public InstanceType  getRecommendedInstance()      { return recommendedInstance; }
-    public List<ScalePoint> getCostCurve()             { return costCurve; }
-    public boolean       isExceedsBudget()             { return exceedsBudget; }
+    public String        getRouteTemplate()               { return routeTemplate; }
+    public double        getObservedRps()                  { return observedRps; }
+    public double        getProjectedRps()                 { return projectedRps; }
+    public double        getProjectedMonthlyCostUsd()      { return projectedMonthlyCostUsd; }
+    public double        getProjectedCostPerUserUsd()      { return projectedCostPerUserUsd; }
+    public InstanceType  getRecommendedInstance()          { return recommendedInstance; }
+    public List<ScalePoint> getCostCurve()                 { return costCurve; }
+    public boolean       isExceedsBudget()                 { return exceedsBudget; }
+    public double        getMedianDurationMs()             { return medianDurationMs; }
+    public double        getMedianCpuCoreSecondsPerReq()   { return medianCpuCoreSecondsPerReq; }
 
     @Override
     public String toString() {
@@ -60,6 +68,8 @@ public final class EndpointCostProjection {
                 + ", projectedRps=" + String.format("%.1f", projectedRps)
                 + ", monthlyCost=$" + String.format("%.2f", projectedMonthlyCostUsd)
                 + ", instance=" + recommendedInstance.getName()
+                + ", medianDurationMs=" + String.format("%.1f", medianDurationMs)
+                + ", medianCpuMs=" + String.format("%.3f", medianCpuCoreSecondsPerReq * 1000)
                 + ", exceedsBudget=" + exceedsBudget
                 + '}';
     }

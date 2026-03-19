@@ -20,11 +20,13 @@ public final class TerminalReporter {
     static final int COL_PROJ_RPS = 10;
     static final int COL_MONTHLY  = 12;
     static final int COL_PER_USER = 12;
+    static final int COL_AVG_MS   = 10;
+    static final int COL_CPU_MS   = 12;
     static final int COL_INSTANCE = 14;
 
     public static final String BUDGET_MARKER = " !!";
     static final String DIVIDER = repeat("-", COL_ROUTE + COL_OBS_RPS + COL_PROJ_RPS
-            + COL_MONTHLY + COL_PER_USER + COL_INSTANCE + 13);
+            + COL_MONTHLY + COL_PER_USER + COL_AVG_MS + COL_CPU_MS + COL_INSTANCE + 13);
 
     private TerminalReporter() {}
 
@@ -77,6 +79,8 @@ public final class TerminalReporter {
             padLeft("Proj RPS", COL_PROJ_RPS + 2) +
             padLeft("$/month", COL_MONTHLY) +
             padLeft("$/user", COL_PER_USER) +
+            padLeft("Avg ms", COL_AVG_MS) +
+            padLeft("CPU ms/req", COL_CPU_MS) +
             padLeft("Instance", COL_INSTANCE)
         );
     }
@@ -89,6 +93,8 @@ public final class TerminalReporter {
             padLeft(String.format("%.1f", p.getProjectedRps()), COL_PROJ_RPS + 2) +
             padLeft("$" + String.format("%.2f", p.getProjectedMonthlyCostUsd()), COL_MONTHLY) +
             padLeft("$" + String.format("%.4f", p.getProjectedCostPerUserUsd()), COL_PER_USER) +
+            padLeft(String.format("%.1f", p.getMedianDurationMs()), COL_AVG_MS) +
+            padLeft(String.format("%.2f", p.getMedianCpuCoreSecondsPerReq() * 1000.0), COL_CPU_MS) +
             padLeft(p.getRecommendedInstance().getName(), COL_INSTANCE) +
             budgetFlag
         );

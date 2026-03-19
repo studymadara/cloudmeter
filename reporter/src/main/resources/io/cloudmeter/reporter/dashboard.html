@@ -147,7 +147,7 @@
       }
       let html = '<table><thead><tr>' +
         '<th>Route</th><th>Obs RPS</th><th>Proj RPS</th>' +
-        '<th>$/month</th><th>$/user</th><th>Instance</th><th></th>' +
+        '<th>$/month</th><th>$/user</th><th>Avg ms</th><th>CPU ms/req</th><th>Instance</th><th></th>' +
         '</tr></thead><tbody>';
       for (const p of projs) {
         const flag = p.exceedsBudget ? '<span class="budget-warn" title="Exceeds budget">!!</span>' : '';
@@ -157,6 +157,8 @@
           '<td>' + (p.projectedRps || 0).toFixed(1) + '</td>' +
           '<td>$' + (p.projectedMonthlyCostUsd || 0).toFixed(2) + '</td>' +
           '<td>$' + (p.projectedCostPerUserUsd || 0).toFixed(4) + '</td>' +
+          '<td>' + (p.medianDurationMs || 0).toFixed(1) + '</td>' +
+          '<td>' + (p.medianCpuMs || 0).toFixed(2) + '</td>' +
           '<td class="instance">' + esc(p.recommendedInstance || '') + '</td>' +
           '<td>' + flag + '</td>' +
           '</tr>';
