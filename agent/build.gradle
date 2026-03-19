@@ -17,6 +17,9 @@ jacocoTestCoverageVerification {
 
 dependencies {
     implementation project(':collector')
+    implementation project(':cost-engine')
+    implementation project(':reporter')
+    implementation project(':cli')
     implementation 'net.bytebuddy:byte-buddy:1.14.12'
     implementation 'net.bytebuddy:byte-buddy-agent:1.14.12'
 

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CloudMeter — Cost Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+           background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+    header { background: #1a1d27; border-bottom: 1px solid #2d3748; padding: 12px 24px;
+             display: flex; align-items: center; justify-content: space-between; }
+    header h1 { font-size: 1.1rem; color: #63b3ed; letter-spacing: 0.05em; }
+    header .meta { font-size: 0.75rem; color: #718096; }
+    .controls { padding: 12px 24px; display: flex; gap: 10px; align-items: center; }
+    button { cursor: pointer; border: none; border-radius: 6px; padding: 7px 18px;
+             font-size: 0.8rem; font-weight: 600; transition: opacity 0.15s; }
+    button:hover { opacity: 0.85; }
+    #btn-start { background: #38a169; color: #fff; }
+    #btn-stop  { background: #e53e3e; color: #fff; }
+    #status    { font-size: 0.75rem; color: #a0aec0; margin-left: 8px; }
+    main { padding: 0 24px 24px; }
+    .summary-bar { display: flex; gap: 16px; margin-bottom: 16px; }
+    .card { background: #1a1d27; border: 1px solid #2d3748; border-radius: 8px;
+            padding: 14px 20px; flex: 1; }
+    .card .label { font-size: 0.7rem; color: #718096; text-transform: uppercase;
+                   letter-spacing: 0.08em; margin-bottom: 4px; }
+    .card .value { font-size: 1.4rem; font-weight: 700; color: #e2e8f0; }
+    .card .value.warn { color: #fc8181; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    th { text-align: left; padding: 8px 12px; color: #718096; font-weight: 600;
+         font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em;
+         border-bottom: 1px solid #2d3748; }
+    td { padding: 8px 12px; border-bottom: 1px solid #1e2330; }
+    tr:hover td { background: #1e2330; }
+    .route { font-family: monospace; color: #90cdf4; }
+    .budget-warn { color: #fc8181; font-weight: 700; }
+    .instance { color: #68d391; font-family: monospace; font-size: 0.78rem; }
+    .panel { background: #1a1d27; border: 1px solid #2d3748; border-radius: 8px;
+             margin-bottom: 16px; overflow: hidden; }
+    .panel-header { padding: 10px 16px; border-bottom: 1px solid #2d3748;
+                    font-size: 0.78rem; color: #a0aec0; font-weight: 600; }
+    canvas { max-height: 260px; }
+    #chart-container { padding: 16px; }
+    .empty { padding: 40px; text-align: center; color: #4a5568; font-size: 0.9rem; }
+    .pricing-note { font-size: 0.7rem; color: #4a5568; padding: 8px 0 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>☁ CloudMeter</h1>
+    <span class="meta" id="meta-bar">loading…</span>
+  </header>
+
+  <div class="controls">
+    <button id="btn-start" onclick="startRecording()">▶ Start Recording</button>
+    <button id="btn-stop"  onclick="stopRecording()">■ Stop Recording</button>
+    <span id="status">Connecting…</span>
+  </div>
+
+  <main>
+    <div class="summary-bar">
+      <div class="card">
+        <div class="label">Total $/month</div>
+        <div class="value" id="total-cost">—</div>
+      </div>
+      <div class="card">
+        <div class="label">Endpoints tracked</div>
+        <div class="value" id="endpoint-count">—</div>
+      </div>
+      <div class="card">
+        <div class="label">Budget alerts</div>
+        <div class="value" id="budget-alerts">—</div>
+      </div>
+      <div class="card">
+        <div class="label">Top endpoint</div>
+        <div class="value" id="top-endpoint" style="font-size:0.9rem">—</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">Endpoint Cost Projections</div>
+      <div id="table-container"><div class="empty">Waiting for data…</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">Cost Curve — Top Endpoint</div>
+      <div id="chart-container"><canvas id="cost-chart"></canvas></div>
+    </div>
+
+    <p class="pricing-note" id="pricing-note"></p>
+  </main>
+
+  <script>
+    let chart = null;
+    let lastData = null;
+
+    async function fetchProjections() {
+      try {
+        const res = await fetch('/api/projections');
+        if (!res.ok) { setStatus('Error ' + res.status); return; }
+        const data = await res.json();
+        lastData = data;
+        render(data);
+        setStatus('Live — refreshes every 5s');
+      } catch (e) {
+        setStatus('Connection error: ' + e.message);
+      }
+    }
+
+    function render(data) {
+      const m = data.meta || {};
+      document.getElementById('meta-bar').textContent =
+        (m.provider || '') + ' · ' + (m.region || '') + ' · ' +
+        (m.targetUsers || 0) + ' target users';
+
+      const projs = data.projections || [];
+      const summary = data.summary || {};
+
+      document.getElementById('total-cost').textContent =
+        '$' + (summary.totalProjectedMonthlyCostUsd || 0).toFixed(2);
+      document.getElementById('endpoint-count').textContent = projs.length;
+
+      const alerts = projs.filter(p => p.exceedsBudget).length;
+      const alertEl = document.getElementById('budget-alerts');
+      alertEl.textContent = alerts;
+      alertEl.className = 'value' + (alerts > 0 ? ' warn' : '');
+
+      document.getElementById('top-endpoint').textContent =
+        projs.length > 0 ? projs[0].route : '—';
+
+      renderTable(projs);
+      if (projs.length > 0) renderChart(projs[0]);
+
+      const pricingNote = document.getElementById('pricing-note');
+      pricingNote.textContent = 'Pricing: ' + (m.provider || '') +
+        ' on-demand Linux · PricingCatalog ' + (m.pricingDate || '') +
+        ' · Standalone per-endpoint estimates (ADR-009).';
+    }
+
+    function renderTable(projs) {
+      const container = document.getElementById('table-container');
+      if (projs.length === 0) {
+        container.innerHTML = '<div class="empty">No data yet — start recording and make some requests.</div>';
+        return;
+      }
+      let html = '<table><thead><tr>' +
+        '<th>Route</th><th>Obs RPS</th><th>Proj RPS</th>' +
+        '<th>$/month</th><th>$/user</th><th>Instance</th><th></th>' +
+        '</tr></thead><tbody>';
+      for (const p of projs) {
+        const flag = p.exceedsBudget ? '<span class="budget-warn" title="Exceeds budget">!!</span>' : '';
+        html += '<tr>' +
+          '<td class="route">' + esc(p.route) + '</td>' +
+          '<td>' + (p.observedRps || 0).toFixed(2) + '</td>' +
+          '<td>' + (p.projectedRps || 0).toFixed(1) + '</td>' +
+          '<td>$' + (p.projectedMonthlyCostUsd || 0).toFixed(2) + '</td>' +
+          '<td>$' + (p.projectedCostPerUserUsd || 0).toFixed(4) + '</td>' +
+          '<td class="instance">' + esc(p.recommendedInstance || '') + '</td>' +
+          '<td>' + flag + '</td>' +
+          '</tr>';
+      }
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    }
+
+    function renderChart(proj) {
+      const curve = proj.costCurve || [];
+      const labels = curve.map(p => p.users >= 1000 ? (p.users/1000)+'k' : p.users);
+      const values = curve.map(p => p.monthlyCostUsd);
+
+      if (chart) {
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = values;
+        chart.data.datasets[0].label = proj.route;
+        chart.update();
+      } else {
+        const ctx = document.getElementById('cost-chart').getContext('2d');
+        chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: proj.route,
+              data: values,
+              borderColor: '#63b3ed',
+              backgroundColor: 'rgba(99,179,237,0.12)',
+              fill: true,
+              tension: 0.3,
+              pointRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: { title: { display: true, text: 'Concurrent Users', color: '#718096' },
+                   ticks: { color: '#718096' }, grid: { color: '#2d3748' } },
+              y: { title: { display: true, text: '$/month', color: '#718096' },
+                   ticks: { color: '#718096', callback: v => '$' + v.toFixed(0) },
+                   grid: { color: '#2d3748' } }
+            },
+            plugins: { legend: { labels: { color: '#a0aec0' } } }
+          }
+        });
+      }
+    }
+
+    function setStatus(msg) {
+      document.getElementById('status').textContent = msg;
+    }
+
+    async function startRecording() {
+      await fetch('/api/recording/start', { method: 'POST' });
+      setStatus('Recording started');
+      fetchProjections();
+    }
+
+    async function stopRecording() {
+      await fetch('/api/recording/stop', { method: 'POST' });
+      setStatus('Recording stopped');
+      fetchProjections();
+    }
+
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    fetchProjections();
+    setInterval(fetchProjections, 5000);
+  </script>
+</body>
+</html>

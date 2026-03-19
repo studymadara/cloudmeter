@@ -2,3 +2,13 @@ dependencies {
     implementation project(':collector')
     implementation project(':cost-engine')
 }
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.99
+            }
+        }
+    }
+}

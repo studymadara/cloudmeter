@@ -3,3 +3,27 @@ dependencies {
     implementation project(':cost-engine')
     implementation project(':reporter')
 }
+
+// CloudMeterMain contains only System.exit() — excluded from JaCoCo class dirs.
+jacocoTestReport {
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: ['**/CloudMeterMain.class'])
+        }))
+    }
+}
+
+jacocoTestCoverageVerification {
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: ['**/CloudMeterMain.class'])
+        }))
+    }
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.99
+            }
+        }
+    }
+}
