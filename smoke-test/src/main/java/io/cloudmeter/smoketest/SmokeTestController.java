@@ -18,6 +18,12 @@ import java.util.concurrent.ThreadLocalRandom;
 @RequestMapping("/api")
 public class SmokeTestController {
 
+    private final AsyncWorkService asyncWorkService;
+
+    public SmokeTestController(AsyncWorkService asyncWorkService) {
+        this.asyncWorkService = asyncWorkService;
+    }
+
     /** GET /api/health — returns immediately, tiny response. */
     @GetMapping("/health")
     public Map<String, String> health() {
@@ -31,7 +37,7 @@ public class SmokeTestController {
     @GetMapping("/users/{id}")
     public Map<String, Object> getUser(@PathVariable String id) {
         // Simulate 5–15 ms of CPU work (mimics a lightweight query)
-        long result = cpuWork(5_000);
+        long result = cpuWork(1_000_000);
 
         Map<String, Object> user = new HashMap<>();
         user.put("id", id);
@@ -49,7 +55,7 @@ public class SmokeTestController {
     @PostMapping("/process")
     public Map<String, Object> process(@RequestBody(required = false) Map<String, Object> body) {
         // Simulate 50–100 ms of CPU work
-        long result = cpuWork(50_000);
+        long result = cpuWork(10_000_000);
 
         // Return a large-ish response to generate an egress signal
         StringBuilder sb = new StringBuilder();
@@ -62,6 +68,41 @@ public class SmokeTestController {
         response.put("checksum", result);
         response.put("output", sb.toString());
         return response;
+    }
+
+    /**
+     * GET /api/async-work — submits heavy CPU work to a Spring @Async thread,
+     * then blocks on the result before returning the response.
+     *
+     * This endpoint verifies CloudMeter's async context propagation:
+     * - The ExecutorInstrumentation wraps the submitted Runnable in a
+     *   ContextPropagatingRunnable so the worker thread's CPU is attributed
+     *   to this request.
+     * - Because we call .get() before the response is sent, onRequestEnd()
+     *   fires after the async CPU is finalized — so it shows up in the metrics.
+     * - Expected medianCpuMs should be visibly higher than /api/health (async
+     *   thread does 25k iterations), confirming propagation works.
+     */
+    @GetMapping("/async-work")
+    public Map<String, Object> asyncWork() {
+        try {
+            // Minimal work on servlet thread (to keep its CPU contribution small)
+            long servletResult = cpuWork(100_000);
+
+            // Heavy work on the @Async thread — we BLOCK until it's done so
+            // the CPU contribution is captured before onRequestEnd() fires
+            long asyncResult = asyncWorkService.doHeavyWork().get();
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "done");
+            response.put("servletChecksum", servletResult);
+            response.put("asyncChecksum", asyncResult);
+            return response;
+        } catch (Exception e) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("error", e.getMessage());
+            return err;
+        }
     }
 
     /**
