@@ -1,0 +1,22 @@
+// Integration tests exercise the full pipeline end-to-end:
+// real MetricsStore → CostProjector → DashboardServer → ReportCommand → CloudMeterCli
+//
+// JaCoCo coverage thresholds are not enforced here — integration tests measure
+// cross-module behaviour, not internal branch coverage.
+
+dependencies {
+    testImplementation project(':collector')
+    testImplementation project(':cost-engine')
+    testImplementation project(':reporter')
+    testImplementation project(':cli')
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.00
+            }
+        }
+    }
+}

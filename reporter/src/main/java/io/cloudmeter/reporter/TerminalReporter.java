@@ -22,7 +22,7 @@ public final class TerminalReporter {
     static final int COL_PER_USER = 12;
     static final int COL_INSTANCE = 14;
 
-    static final String BUDGET_MARKER = " !!";
+    public static final String BUDGET_MARKER = " !!";
     static final String DIVIDER = repeat("-", COL_ROUTE + COL_OBS_RPS + COL_PROJ_RPS
             + COL_MONTHLY + COL_PER_USER + COL_INSTANCE + 13);
 

@@ -57,7 +57,11 @@ final class JsonProjectionParser {
         double monthly     = extractDouble(MONTHLY_PAT, seg, 0.0);
         double perUser     = extractDouble(PER_USER_PAT, seg, 0.0);
         String instName    = extract(INSTANCE_PAT, seg);
-        boolean exceeds    = "true".equals(extractRaw(EXCEEDS_PAT, seg));
+        // Re-evaluate against the CLI-supplied budget when one is set; otherwise
+        // trust the flag the dashboard computed server-side.
+        boolean exceeds = config.getBudgetUsd() > 0
+                ? monthly > config.getBudgetUsd()
+                : "true".equals(extractRaw(EXCEEDS_PAT, seg));
         List<ScalePoint> curve = parseCurve(seg);
 
         if (route == null || instName == null) return null;

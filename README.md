@@ -24,11 +24,20 @@ CloudMeter fills that gap.
 **One flag. No code changes.**
 
 ```bash
-java -javaagent:cloudmeter-agent.jar \
-     -Dcloudmeter.provider=aws \
-     -Dcloudmeter.region=us-east-1 \
+java -javaagent:cloudmeter-agent.jar=provider=AWS,region=us-east-1,targetUsers=10000,budget=500 \
      -jar myapp.jar
 ```
+
+Agent args are passed as a comma-separated `key=value` string after the JAR path. All keys are case-insensitive.
+
+| Arg | Default | Description |
+|---|---|---|
+| `provider` | `AWS` | Cloud provider: `AWS`, `GCP`, or `AZURE` |
+| `region` | `us-east-1` | Cloud region for pricing lookup |
+| `targetUsers` | `1000` | Concurrent users to project cost at |
+| `rpu` | `1.0` | Requests per user per second |
+| `budget` | `0` | Monthly USD budget (0 = no threshold) |
+| `port` | `7777` | Dashboard port |
 
 Open [http://localhost:7777](http://localhost:7777) — your cost dashboard is live.
 
@@ -101,7 +110,7 @@ A p95/p50 ratio above 1.5× means some parameter values are disproportionately e
 ```bash
 docker run \
   -v /path/to/cloudmeter-agent.jar:/cloudmeter/agent.jar \
-  -e JAVA_TOOL_OPTIONS="-javaagent:/cloudmeter/agent.jar -Dcloudmeter.provider=aws" \
+  -e JAVA_TOOL_OPTIONS="-javaagent:/cloudmeter/agent.jar=provider=AWS,region=us-east-1,targetUsers=5000" \
   -p 7777:7777 \
   myapp:latest
 ```
@@ -125,7 +134,7 @@ containers:
   - name: myapp
     env:
       - name: JAVA_TOOL_OPTIONS
-        value: "-javaagent:/agent/cloudmeter-agent.jar -Dcloudmeter.provider=aws"
+        value: "-javaagent:/agent/cloudmeter-agent.jar=provider=AWS,region=us-east-1,targetUsers=5000"
     volumeMounts:
       - name: cloudmeter-agent
         mountPath: /agent
@@ -210,10 +219,23 @@ cd cloudmeter
 ./gradlew build
 ```
 
+Build the agent fat JAR (includes all dependencies, shaded):
+
+```bash
+./gradlew :agent:shadowJar
+# Output: agent/build/libs/agent-0.1.0.jar
+```
+
 Run tests with coverage:
 
 ```bash
 ./gradlew test jacocoTestReport jacocoTestCoverageVerification
+```
+
+Run the end-to-end integration tests:
+
+```bash
+./gradlew :integration-test:test
 ```
 
 Coverage reports are written to `*/build/reports/jacoco/test/html/index.html`.
@@ -224,19 +246,30 @@ Coverage reports are written to `*/build/reports/jacoco/test/html/index.html`.
 
 ```
 cloudmeter/
-├── collector/      RequestContext, MetricsStore (ring buffer), RouteStatsCalculator
-│                   Route normalization · p50/p95/p99 variance tracking
+├── collector/         RequestContext, MetricsStore (ring buffer), RouteStatsCalculator
+│                      Route normalization · p50/p95/p99 variance tracking
 │
-├── agent/          Java agent entry point (premain + agentmain / dynamic attach)
-│                   HttpInstrumentation  — Byte Buddy intercept of HttpServlet.service()
-│                   HttpServletAdvice    — @Advice enter/exit hooks (javax + jakarta)
-│                   ThreadStateCollector — 10 ms sampler daemon (wait ratio, peak memory)
-│                   ContextPropagatingRunnable — async context hand-off (@Async, CompletableFuture)
-│                   RouteNormalizer      — heuristic {id}/{uuid}/{slug} normalization
+├── cost-engine/       CostProjector, PricingCatalog (AWS/GCP/Azure), EndpointCostProjection
+│                      Linear scaling model · instance selection · cost curve generation
 │
-├── cost-engine/    AWS / GCP / Azure pricing engines, cost projection formula
-├── reporter/       Terminal, JSON, and dashboard reporters
-└── cli/            attach, report, estimate subcommands
+├── reporter/          TerminalReporter — human-readable table with budget markers
+│                      JsonReporter     — CI/CD JSON output (exits 1 on budget breach)
+│                      DashboardServer  — embedded HTTP server on :7777 (127.0.0.1 only)
+│                      dashboard.html   — SPA with Chart.js cost curves, 5 s auto-refresh
+│
+├── cli/               CloudMeterCli / CloudMeterMain — CLI entry point
+│                      ReportCommand    — fetches projections from live dashboard
+│                      CliArgs          — agent args parser (key=value format)
+│                      JsonProjectionParser — zero-dependency JSON parser for projections API
+│
+├── agent/             AgentMain — premain() + agentmain() entry points (fat JAR)
+│                      HttpInstrumentation  — Byte Buddy intercept of HttpServlet.service()
+│                      HttpServletAdvice    — @Advice enter/exit hooks (javax + jakarta)
+│                      ThreadStateCollector — 10 ms sampler daemon (wait ratio, peak memory)
+│                      ContextPropagatingRunnable — async context hand-off (@Async, CompletableFuture)
+│
+└── integration-test/  End-to-end pipeline tests: MetricsStore → CostProjector → all reporters
+                       → DashboardServer HTTP → ReportCommand → CloudMeterCli exit codes
 ```
 
 Architecture decisions, design rationale, and the full system design live in [`arc42.md`](arc42.md).

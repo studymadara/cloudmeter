@@ -42,7 +42,7 @@ public final class CostProjector {
      * Scale points used for the cost curve (concurrent user counts).
      * These 12 points form the x-axis of the dashboard cost graph.
      */
-    static final int[] SCALE_USERS = {
+    public static final int[] SCALE_USERS = {
         100, 200, 500, 1_000, 2_000, 5_000,
         10_000, 20_000, 50_000, 100_000, 500_000, 1_000_000
     };

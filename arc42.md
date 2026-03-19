@@ -173,41 +173,55 @@ CloudMeter fills that gap. It attaches to a running JVM and tells developers exa
 
 ```
 cloudmeter/
-├── agent/                           ← Fat JAR entry point (-javaagent / attach)
-│   ├── AgentMain.java               ← premain() + agentmain() — wires up all instrumentation
+├── agent/                                ← Fat JAR entry point (-javaagent / attach)
+│   ├── AgentMain.java                    ← premain() + agentmain(); parses CliArgs, starts
+│   │                                        DashboardServer, registers shutdown hook
 │   └── instrumentation/
-│       ├── HttpInstrumentation      ← Byte Buddy: intercept Servlet Filter chain
-│       ├── AsyncContextPropagator   ← Byte Buddy: wrap Executor/ExecutorService submissions
-│       ├── RouteNormalizer          ← extract route template; Spring MVC + fallback map
-│       ├── ThreadStateCollector     ← background sampler: polls ThreadMXBean at 10ms
-│       └── MetricsCollector         ← assembles RequestMetrics per completed request
+│       ├── HttpInstrumentation           ← Byte Buddy: intercept HttpServlet.service()
+│       │                                    (javax + jakarta)
+│       ├── HttpServletAdvice             ← @Advice enter/exit: create RequestContext,
+│       │                                    commit RequestMetrics on completion
+│       ├── AsyncContextPropagator        ← Byte Buddy: wrap Executor/ExecutorService submissions
+│       ├── RouteNormalizer               ← extract route template; Spring MVC + heuristic fallback
+│       └── ThreadStateCollector          ← background daemon sampler: polls ThreadMXBean at 10ms
 │
 ├── collector/
-│   ├── MetricsStore                 ← in-memory ring buffer; optional flush to disk
-│   ├── RequestMetrics.java          ← data class (Java 8 compatible POJO — see below)
-│   ├── RouteStats.java              ← aggregated cost distribution per route template
-│   └── WireProtocol.java            ← JSON schema (OTel-compatible field names)
+│   ├── MetricsStore                      ← thread-safe in-memory store; startRecording() / getAll()
+│   ├── RequestMetrics.java               ← immutable builder-pattern POJO (Java 8 compatible)
+│   ├── RequestContext.java               ← ThreadLocal context: route, timestamps, thread IDs
+│   ├── RouteStatsCalculator.java         ← p50/p95/p99 cost distribution per route
+│   └── ContextPropagatingRunnable.java   ← preserves RequestContext across async thread hand-offs
 │
 ├── cost-engine/
-│   ├── CostProjector.java           ← scaling formula + instance type selection
-│   ├── InstanceCatalog.java         ← instance types across providers (vCPU, RAM, $/hr)
-│   ├── aws/AwsPricingEngine         ← EC2 on-demand rates + egress rates by region
-│   ├── gcp/GcpPricingEngine         ← Compute Engine rates + egress rates by region
-│   └── azure/AzurePricingEngine     ← Azure VM rates + egress rates by region
+│   ├── CostProjector.java                ← static project() — 6-step formula; returns
+│   │                                        EndpointCostProjection list sorted by monthly cost
+│   ├── EndpointCostProjection.java       ← immutable projection result: cost at scale, curve, budget flag
+│   ├── ProjectionConfig.java             ← builder: provider, region, targetUsers, rpu, budget
+│   ├── PricingCatalog.java               ← EnumMap-based static pricing tables (AWS/GCP/Azure)
+│   ├── InstanceType.java                 ← name, provider, vCPU, memoryGiB, hourlyUsd
+│   ├── ScalePoint.java                   ← (concurrentUsers, monthlyCostUsd) curve point
+│   └── CloudProvider.java                ← enum: AWS, GCP, AZURE
 │
 ├── reporter/
-│   ├── terminal/TerminalReporter    ← ANSI table output to stdout
-│   ├── json/JsonReporter            ← machine-readable output for CI/CD
-│   └── dashboard/
-│       ├── DashboardServer.java     ← embedded HTTP server on :7777
-│       ├── ApiHandler.java          ← REST endpoints serving MetricsStore + Cost Engine data
-│       └── static/
-│           ├── index.html
-│           ├── dashboard.js         ← polls /api/metrics every 5s; renders table + cost curve + variance indicators
-│           └── chart.js             ← cost curve chart (canvas-based, no framework)
+│   ├── TerminalReporter.java             ← fixed-width table to PrintStream; budget rows marked !!
+│   ├── JsonReporter.java                 ← zero-dependency JSON serialiser; returns boolean for CI
+│   ├── DashboardServer.java              ← com.sun.net.httpserver.HttpServer on 127.0.0.1:7777
+│   │                                        GET /  GET /api/projections
+│   │                                        POST /api/recording/start|stop
+│   └── resources/dashboard.html          ← single-page app: Chart.js cost curves, 5s auto-refresh,
+│                                            recording controls, summary cards
 │
-└── cli/
-    └── CloudMeterCli.java           ← subcommands: attach, report, estimate
+├── cli/
+│   ├── CloudMeterCli.java                ← run(args,out,err,cmd) → int exit code (testable)
+│   ├── CloudMeterMain.java               ← main() → System.exit(CloudMeterCli.run(...))
+│   ├── ReportCommand.java                ← fetches /api/projections, renders via reporters
+│   ├── CliArgs.java                      ← parses key=value agent arg string; toProjectionConfig()
+│   └── JsonProjectionParser.java         ← regex-based projections JSON parser (zero dependencies)
+│                                            re-evaluates exceedsBudget against CLI budget when set
+│
+└── integration-test/
+    └── PipelineIntegrationTest.java      ← end-to-end: MetricsStore → CostProjector → all reporters
+                                             → DashboardServer HTTP → ReportCommand → CloudMeterCli
 ```
 
 ### Key Data Structures
@@ -355,24 +369,30 @@ cloudmeter report --format json --budget 500 > cost-report.json
 
 ### Bare JVM
 
+Agent configuration is passed as a comma-separated `key=value` string in the `-javaagent` argument (all keys case-insensitive):
+
 ```bash
-java -javaagent:cloudmeter-agent.jar \
-     [-Dcloudmeter.port=7777] \
-     [-Dcloudmeter.config=cloudmeter.yaml] \
-     [-Dcloudmeter.region=us-east-1] \
-     [-Dcloudmeter.provider=aws] \
+java -javaagent:cloudmeter-agent.jar=provider=AWS,region=us-east-1,targetUsers=10000,rpu=1.0,budget=500,port=7777 \
      -jar myapp.jar
 ```
+
+| Key | Default | Description |
+|---|---|---|
+| `provider` | `AWS` | `AWS`, `GCP`, or `AZURE` |
+| `region` | `us-east-1` | Cloud region for pricing |
+| `targetUsers` | `1000` | Concurrent users to project cost at |
+| `rpu` | `1.0` | Requests per user per second |
+| `budget` | `0` | Monthly USD budget threshold (0 = disabled) |
+| `port` | `7777` | Dashboard port |
 
 ### Docker
 
 Use `JAVA_TOOL_OPTIONS` to inject the agent without modifying the Dockerfile or the application image:
 
 ```bash
-# Mount the agent JAR and set JAVA_TOOL_OPTIONS
 docker run \
   -v /path/to/cloudmeter-agent.jar:/cloudmeter/agent.jar \
-  -e JAVA_TOOL_OPTIONS="-javaagent:/cloudmeter/agent.jar -Dcloudmeter.provider=aws -Dcloudmeter.region=us-east-1" \
+  -e JAVA_TOOL_OPTIONS="-javaagent:/cloudmeter/agent.jar=provider=AWS,region=us-east-1,targetUsers=5000" \
   -p 7777:7777 \
   myapp:latest
 ```
@@ -386,7 +406,7 @@ services:
     volumes:
       - ./cloudmeter-agent.jar:/cloudmeter/agent.jar
     environment:
-      JAVA_TOOL_OPTIONS: "-javaagent:/cloudmeter/agent.jar -Dcloudmeter.provider=aws"
+      JAVA_TOOL_OPTIONS: "-javaagent:/cloudmeter/agent.jar=provider=AWS,region=us-east-1,targetUsers=5000"
     ports:
       - "7777:7777"   # dashboard — bind to localhost only in production
 ```
@@ -411,7 +431,7 @@ containers:
   - name: myapp
     env:
       - name: JAVA_TOOL_OPTIONS
-        value: "-javaagent:/agent/cloudmeter-agent.jar -Dcloudmeter.provider=aws"
+        value: "-javaagent:/agent/cloudmeter-agent.jar=provider=AWS,region=us-east-1,targetUsers=5000"
     volumeMounts:
       - name: cloudmeter-agent
         mountPath: /agent
@@ -893,6 +913,23 @@ All data remains local to the JVM process. No external network calls are made. S
 - Docker and Kubernetes users are expected to manage port exposure at the infrastructure level
 
 **Consequences**: If `:7777` is accidentally exposed (e.g., misconfigured Kubernetes service), cost data and recording controls are accessible to anyone. Future v2 should add optional token auth. Warning is printed to stdout on startup if `cloudmeter.expose.warning=false` is not set.
+
+---
+
+### ADR-013: CLI Budget Re-evaluation Overrides Server-Computed Flag
+
+**Status**: Accepted
+
+**Context**: The `/api/projections` JSON response includes `exceedsBudget` flags computed by the server using its configured budget. When the CLI is invoked with a different `--budget` value, there is a mismatch.
+
+**Decision**: `JsonProjectionParser.parse()` re-evaluates `exceedsBudget` using `projectedMonthlyCostUsd > config.getBudgetUsd()` when `config.getBudgetUsd() > 0`. When budget is `0` (disabled), the server-computed flag is used.
+
+**Rationale**:
+- Allows running multiple cost gates with different thresholds against the same dashboard instance
+- The CLI's `--budget` parameter has clearer intent than the server's configured budget for exit-code purposes
+- Avoids requiring the server to restart with a new config to use a different budget threshold in CI
+
+**Consequences**: The `exceedsBudget` field in JSON output reflects the CLI-supplied budget, not the agent-configured budget. This is the expected behaviour for CI usage.
 
 ---
 

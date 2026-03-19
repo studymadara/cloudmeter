@@ -33,9 +33,9 @@ import java.io.PrintStream;
  */
 public final class CloudMeterCli {
 
-    static final int EXIT_OK      = 0;
-    static final int EXIT_BUDGET  = 1;
-    static final int EXIT_ERROR   = 2;
+    public static final int EXIT_OK      = 0;
+    public static final int EXIT_BUDGET  = 1;
+    public static final int EXIT_ERROR   = 2;
 
     private CloudMeterCli() {}
 
@@ -43,7 +43,7 @@ public final class CloudMeterCli {
      * Testable entry point — returns an exit code instead of calling {@code System.exit}.
      * The fat-JAR entry point lives in {@link CloudMeterMain}.
      */
-    static int run(String[] args, PrintStream out, PrintStream err, ReportCommand cmd) {
+    public static int run(String[] args, PrintStream out, PrintStream err, ReportCommand cmd) {
         if (args == null || args.length == 0) {
             printUsage(err);
             return EXIT_ERROR;

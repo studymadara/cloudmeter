@@ -37,6 +37,16 @@ jobs:
       - name: Run tests with coverage
         run: ./gradlew test jacocoTestReport jacocoTestCoverageVerification
 
+      - name: Build agent fat JAR
+        run: ./gradlew :agent:shadowJar
+
+      - name: Upload agent fat JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudmeter-agent
+          path: agent/build/libs/agent-*.jar
+          retention-days: 30
+
       - name: Upload HTML coverage reports
         if: always()
         uses: actions/upload-artifact@v4
