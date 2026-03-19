@@ -7,7 +7,9 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Java 8+](https://img.shields.io/badge/Java-8%2B-orange.svg)](https://openjdk.org/)
 
-CloudMeter is an open source Java agent that attaches to your running JVM and tells you exactly what each of your API endpoints costs to run on AWS, GCP, or Azure — without any code changes.
+CloudMeter is a **free, open source** Java agent that attaches to your running JVM and tells you exactly what each of your API endpoints costs to run on AWS, GCP, or Azure — without any code changes, no cloud credentials, and no SaaS subscription.
+
+Drop in one JVM flag. See costs in under 5 minutes.
 
 ![CloudMeter Dashboard](docs/screenshots/dashboard.png)
 
@@ -194,16 +196,19 @@ Exit code `1` if any endpoint breaches the budget. Attach `cost-report.json` as 
 
 | | Supported |
 |---|---|
-| Java 8, 11, 17, 21 | ✅ |
-| Spring Boot 1.x, 2.x, 3.x | ✅ |
-| JAX-RS | ✅ |
-| Raw Servlet API | ✅ |
-| AWS / GCP / Azure cost projection | ✅ |
-| Spring WebFlux / Project Reactor | ❌ v2 |
-| GraalVM native image | ❌ not supported |
-| Virtual threads (Java 21) | ❌ v1 limitation |
+| Java 11, 17, 19, 21 | ✅ smoke-tested |
+| Java 8 | ✅ agent compiled `--release 8`; runtime testing planned |
+| Spring Boot 2.x (javax.servlet / Tomcat 9) | ✅ smoke-tested |
+| Spring Boot 3.x (jakarta.servlet / Tomcat 10) | ✅ smoke-tested |
+| Spring Boot 1.x | 🔲 untested (should work — same javax.servlet stack) |
+| Raw Servlet API (embedded Tomcat 9, no Spring) | ✅ smoke-tested |
+| JAX-RS (Jersey, RESTEasy) | 🔲 untested — planned v0.2.0 |
+| AWS / GCP / Azure cost projection | ✅ smoke-tested |
 | Spring `@Async` context propagation | ✅ (ThreadPoolTaskExecutor + SimpleAsyncTaskExecutor) |
+| Spring WebFlux / Project Reactor | ❌ v2 (reactive model incompatible with ThreadLocal propagation) |
 | `CompletableFuture` on JVM common pool | ❌ v2 (requires bootstrap injection) |
+| GraalVM native image | ❌ not supported (`-javaagent` does not work on native) |
+| Virtual threads (Java 21) | ❌ v1 limitation (`ThreadMXBean` CPU time unreliable for virtual threads) |
 
 ---
 
@@ -278,6 +283,37 @@ cloudmeter/
 ```
 
 Architecture decisions, design rationale, and the full system design live in [`arc42.md`](arc42.md).
+
+---
+
+## Distribution
+
+CloudMeter is free to use and share. The fat JAR is self-contained — no transitive dependencies in your classpath.
+
+**GitHub Releases** (primary): download `cloudmeter-agent.jar` from the [Releases page](https://github.com/studymadara/cloudmeter/releases) and reference it with `-javaagent:`.
+
+**Maven / Gradle** (coming soon): once published to Maven Central, you will be able to pull the JAR via your build tool without downloading it manually:
+
+```xml
+<!-- Maven — download-only, not a compile dependency -->
+<dependency>
+  <groupId>io.github.studymadara</groupId>
+  <artifactId>cloudmeter-agent</artifactId>
+  <version>0.1.0</version>
+  <scope>provided</scope>
+</dependency>
+```
+
+```groovy
+// Gradle
+configurations { cloudmeter }
+dependencies {
+    cloudmeter 'io.github.studymadara:cloudmeter-agent:0.1.0'
+}
+// then reference the resolved JAR path in your JVM args
+```
+
+Until Maven Central publishing is set up, use the GitHub Releases JAR directly.
 
 ---
 
