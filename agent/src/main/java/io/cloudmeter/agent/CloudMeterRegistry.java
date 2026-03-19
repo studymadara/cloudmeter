@@ -21,8 +21,9 @@ public final class CloudMeterRegistry {
     /** Warmup window: metrics captured in the first 30 s are flagged and excluded from projections. */
     static final long WARMUP_DURATION_MS = 30_000L;
 
-    private static volatile MetricsStore store;
-    private static volatile long         agentStartMs = System.currentTimeMillis();
+    private static volatile MetricsStore        store;
+    private static volatile long                agentStartMs = System.currentTimeMillis();
+    private static volatile ThreadStateCollector sampler;
 
     private static final Set<RequestContext> activeContexts =
             Collections.newSetFromMap(new ConcurrentHashMap<RequestContext, Boolean>());
@@ -70,8 +71,18 @@ public final class CloudMeterRegistry {
 
     // ── Test helpers ──────────────────────────────────────────────────────────
 
+    /** Registers the background sampler so reset() can stop it. Package-private. */
+    static void setSampler(ThreadStateCollector collector) {
+        sampler = collector;
+    }
+
     /** Resets all registry state. Package-private — for tests only. */
     static void reset() {
+        ThreadStateCollector s = sampler;
+        if (s != null) {
+            s.stop();
+            sampler = null;
+        }
         store        = null;
         agentStartMs = System.currentTimeMillis();
         activeContexts.clear();

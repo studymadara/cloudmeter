@@ -79,7 +79,9 @@ public final class AgentMain {
         }
 
         // Start the background thread-state sampler at 10 ms intervals
-        new ThreadStateCollector(10L).start();
+        ThreadStateCollector collector = new ThreadStateCollector(10L);
+        collector.start();
+        CloudMeterRegistry.setSampler(collector);
         CloudMeterLogger.info("Thread-state sampler started (10 ms interval)");
 
         // Start the embedded dashboard server on the configured port
