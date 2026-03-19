@@ -79,4 +79,6 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Run stress tests
-        run: ./gradlew test --tests "*StressTest" --info
+        # Target collector explicitly — avoids Gradle failing with "No tests found"
+        # in modules that have test sources but no StressTest classes (e.g. agent).
+        run: ./gradlew :collector:test --tests "*StressTest" --info
