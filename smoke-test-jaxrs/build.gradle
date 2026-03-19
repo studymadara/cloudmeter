@@ -1,0 +1,46 @@
+// JAX-RS smoke test — verifies agent works with Jersey 2.x on embedded Tomcat 9
+// NOT included in CI — manual test harness only.
+
+plugins {
+    id 'java'
+    id 'application'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.glassfish.jersey.containers:jersey-container-servlet-core:2.41'
+    implementation 'org.glassfish.jersey.inject:jersey-hk2:2.41'
+    implementation 'org.apache.tomcat.embed:tomcat-embed-core:9.0.87'
+}
+
+application {
+    mainClass = 'io.cloudmeter.smoketestjaxrs.Main'
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'io.cloudmeter.smoketestjaxrs.Main'
+    }
+    from {
+        configurations.runtimeClasspath.collect {
+            it.isDirectory() ? it : zipTree(it)
+        }
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
+    archiveFileName = 'smoke-test-jaxrs-app.jar'
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule { limit { minimum = 0.00 } }
+    }
+}

@@ -38,6 +38,7 @@ public final class AgentMain {
     private AgentMain() {}
 
     public static void premain(String args, Instrumentation inst) {
+        injectBootstrapClasses(inst);
         initialize(args, inst);
     }
 
@@ -55,6 +56,49 @@ public final class AgentMain {
     }
 
     /**
+     * Injects the context-propagation classes into the bootstrap classloader so that
+     * instrumented JDK classes (e.g. ThreadPoolExecutor) can reference them.
+     *
+     * Must be called as the FIRST thing in premain(), before any CloudMeter class is
+     * loaded, so that parent-first classloader delegation routes all subsequent loads of
+     * these classes to the bootstrap classloader's copy.
+     *
+     * Uses only JDK classes — no CloudMeter imports — so that calling this method does
+     * not itself trigger loading of any class that we are about to inject.
+     */
+    static void injectBootstrapClasses(java.lang.instrument.Instrumentation inst) {
+        if (inst == null) return;
+        String[] resources = {
+            "io/cloudmeter/collector/RequestContext.class",
+            "io/cloudmeter/collector/RequestContextHolder.class",
+            "io/cloudmeter/agent/ContextPropagatingRunnable.class",
+            "io/cloudmeter/agent/ExecutorInterceptor.class"
+        };
+        java.io.File tmpFile = null;
+        try {
+            tmpFile = java.io.File.createTempFile("cloudmeter-bootstrap-", ".jar");
+            tmpFile.deleteOnExit();
+            try (java.util.jar.JarOutputStream jos =
+                    new java.util.jar.JarOutputStream(new java.io.FileOutputStream(tmpFile))) {
+                for (String resource : resources) {
+                    java.io.InputStream is =
+                        ClassLoader.getSystemClassLoader().getResourceAsStream(resource);
+                    if (is == null) continue;
+                    jos.putNextEntry(new java.util.jar.JarEntry(resource));
+                    byte[] buf = new byte[4096];
+                    int n;
+                    while ((n = is.read(buf)) >= 0) jos.write(buf, 0, n);
+                    jos.closeEntry();
+                    is.close();
+                }
+            }
+            inst.appendToBootstrapClassLoaderSearch(new java.util.jar.JarFile(tmpFile));
+        } catch (Throwable t) {
+            // Non-fatal: bootstrap injection failure degrades gracefully (Spring executors still work)
+        }
+    }
+
+    /**
      * Core initialization — wires the MetricsStore, HTTP instrumentation, background sampler,
      * dashboard server, and shutdown hook.
      * Separated so tests can invoke it directly with a null Instrumentation.
@@ -62,8 +106,8 @@ public final class AgentMain {
     static void doInitialize(String args, Instrumentation inst) {
         CloudMeterLogger.info("CloudMeter agent starting (args=" + args + ")");
 
-        // Parse configuration from agent args
-        CliArgs cliArgs = CliArgs.parse(args);
+        // Parse configuration from agent args — merges cloudmeter.yaml with agent args
+        CliArgs cliArgs = CliArgs.parseWithYaml(args);
         ProjectionConfig config = cliArgs.toProjectionConfig();
 
         // Initialise the metrics store and start recording immediately
@@ -78,6 +122,8 @@ public final class AgentMain {
             CloudMeterLogger.info("HTTP instrumentation installed");
             ExecutorInstrumentation.install(inst);
             CloudMeterLogger.info("Executor instrumentation installed (Spring @Async context propagation)");
+            ThreadPoolExecutorInstrumentation.install(inst);
+            CloudMeterLogger.info("JVM executor instrumentation installed (ThreadPoolExecutor context propagation)");
         }
 
         // Start the background thread-state sampler at 10 ms intervals

@@ -149,14 +149,16 @@ volumes:
 
 ---
 
-## Dynamic attach (v2)
+## Dynamic attach
 
-Dynamic attach (`agentmain`) is implemented in the agent JAR but the CLI command
-(`cloudmeter attach <pid>`) is not yet available in v0.1.0. Use the `-javaagent` flag
-at JVM startup for now. Dynamic attach without restart is planned for v0.2.0.
+Attach CloudMeter to a running JVM without a restart:
 
-If you need it today, you can trigger `agentmain` manually via any JVM attach tool
-(e.g. `jattach`) using the fat JAR as the agent.
+```bash
+cloudmeter attach <pid> --agent-jar /path/to/cloudmeter-agent.jar \
+  --provider AWS --region us-east-1 --users 5000
+```
+
+Requires a JDK installation (Java 11+). The dashboard starts at `:7777` on the target JVM immediately after attach.
 
 ---
 
@@ -177,7 +179,19 @@ All configuration is passed as agent args — a comma-separated `key=value` stri
 | `budget` | `0` | Monthly USD threshold (0 = disabled) |
 | `port` | `7777` | Dashboard HTTP port |
 
-> File-based `cloudmeter.yaml` configuration is planned for v0.2.0.
+### cloudmeter.yaml (optional)
+
+Place a `cloudmeter.yaml` in your working directory to avoid repeating flags:
+
+```yaml
+provider: AWS
+region: us-east-1
+targetUsers: 10000
+budget: 500
+port: 7777
+```
+
+Agent args always take priority over YAML values. YAML values take priority over built-in defaults.
 
 ---
 
@@ -202,11 +216,11 @@ Exit code `1` if any endpoint breaches the budget. Attach `cost-report.json` as 
 | Spring Boot 3.x (jakarta.servlet / Tomcat 10) | ✅ smoke-tested |
 | Spring Boot 1.x | 🔲 untested (should work — same javax.servlet stack) |
 | Raw Servlet API (embedded Tomcat 9, no Spring) | ✅ smoke-tested |
-| JAX-RS (Jersey, RESTEasy) | 🔲 untested — planned v0.2.0 |
+| JAX-RS (Jersey 2.x / 3.x, RESTEasy) | ✅ smoke-tested (heuristic route normalization) |
 | AWS / GCP / Azure cost projection | ✅ smoke-tested |
 | Spring `@Async` context propagation | ✅ (ThreadPoolTaskExecutor + SimpleAsyncTaskExecutor) |
+| `CompletableFuture.supplyAsync(supplier, executor)` | ✅ (ThreadPoolExecutor-backed); common pool (ForkJoinPool) 🔲 v0.3.0 |
 | Spring WebFlux / Project Reactor | ❌ v2 (reactive model incompatible with ThreadLocal propagation) |
-| `CompletableFuture` on JVM common pool | ❌ v2 (requires bootstrap injection) |
 | GraalVM native image | ❌ not supported (`-javaagent` does not work on native) |
 | Virtual threads (Java 21) | ❌ v1 limitation (`ThreadMXBean` CPU time unreliable for virtual threads) |
 

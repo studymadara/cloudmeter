@@ -50,6 +50,9 @@ public final class CloudMeterCli {
         }
 
         String subcommand = args[0];
+        if ("attach".equalsIgnoreCase(subcommand)) {
+            return runAttach(args, out, err);
+        }
         if (!"report".equalsIgnoreCase(subcommand)) {
             err.println("[cloudmeter] Unknown subcommand: " + subcommand);
             printUsage(err);
@@ -102,6 +105,44 @@ public final class CloudMeterCli {
         return exceeded ? EXIT_BUDGET : EXIT_OK;
     }
 
+    private static int runAttach(String[] args, PrintStream out, PrintStream err) {
+        if (args.length < 2) {
+            err.println("[cloudmeter] Usage: cloudmeter attach <pid> --agent-jar <path> [agent-args]");
+            return EXIT_ERROR;
+        }
+        String pid = args[1];
+        String agentJar = null;
+        StringBuilder agentArgsBuilder = new StringBuilder();
+
+        for (int i = 2; i < args.length; i++) {
+            String flag = args[i];
+            String next = (i + 1 < args.length) ? args[i + 1] : null;
+            if ("--agent-jar".equals(flag) && next != null) {
+                agentJar = next; i++;
+            } else if ("--provider".equals(flag) && next != null) {
+                agentArgsBuilder.append("provider=").append(next).append(","); i++;
+            } else if ("--region".equals(flag) && next != null) {
+                agentArgsBuilder.append("region=").append(next).append(","); i++;
+            } else if ("--users".equals(flag) && next != null) {
+                agentArgsBuilder.append("targetUsers=").append(next).append(","); i++;
+            } else if ("--rpu".equals(flag) && next != null) {
+                agentArgsBuilder.append("rpu=").append(next).append(","); i++;
+            } else if ("--budget".equals(flag) && next != null) {
+                agentArgsBuilder.append("budget=").append(next).append(","); i++;
+            } else if ("--port".equals(flag) && next != null) {
+                agentArgsBuilder.append("port=").append(next).append(","); i++;
+            }
+        }
+
+        if (agentJar == null) {
+            err.println("[cloudmeter] --agent-jar <path> is required for attach");
+            return EXIT_ERROR;
+        }
+
+        boolean ok = AttachCommand.attach(pid, agentJar, agentArgsBuilder.toString(), out, err);
+        return ok ? EXIT_OK : EXIT_ERROR;
+    }
+
     private static int parseIntFlag(String val, int def, PrintStream err) {
         try {
             return Integer.parseInt(val);
@@ -112,8 +153,13 @@ public final class CloudMeterCli {
     }
 
     private static void printUsage(PrintStream out) {
-        out.println("Usage: cloudmeter report [options]");
+        out.println("Usage: cloudmeter <subcommand> [options]");
         out.println();
+        out.println("Subcommands:");
+        out.println("  report   Fetch and display cost projections from a running dashboard");
+        out.println("  attach   Attach CloudMeter to a running JVM without a restart");
+        out.println();
+        out.println("report options:");
         out.println("  --host HOST           Dashboard host        (default: 127.0.0.1)");
         out.println("  --port PORT           Dashboard port        (default: 7777)");
         out.println("  --format terminal|json Output format       (default: terminal)");
@@ -122,6 +168,16 @@ public final class CloudMeterCli {
         out.println("  --users N             Target user count     (default: 1000)");
         out.println("  --rpu N               Requests/user/sec     (default: 1.0)");
         out.println("  --budget N            Monthly budget (USD)  (default: 0 = disabled)");
+        out.println();
+        out.println("attach options:");
+        out.println("  <pid>                 Target JVM process ID (required)");
+        out.println("  --agent-jar <path>    Path to cloudmeter-agent.jar (required)");
+        out.println("  --provider AWS|GCP|AZURE");
+        out.println("  --region REGION");
+        out.println("  --users N");
+        out.println("  --rpu N");
+        out.println("  --budget N");
+        out.println("  --port N              Dashboard port on target JVM (default: 7777)");
         out.println();
         out.println("Exit codes: 0 = ok, 1 = budget exceeded, 2 = error");
     }

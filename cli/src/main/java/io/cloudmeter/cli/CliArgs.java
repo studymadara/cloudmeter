@@ -60,7 +60,22 @@ public final class CliArgs {
      * @param args may be null or empty — returns all-defaults in that case
      */
     public static CliArgs parse(String args) {
-        Map<String, String> map = parseMap(args);
+        return buildFromMap(parseMap(args));
+    }
+
+    /**
+     * Parses agent args merged with values from {@code cloudmeter.yaml} in the working
+     * directory. Agent args take priority over YAML values; both override built-in defaults.
+     *
+     * @param agentArgs may be null or empty
+     */
+    public static CliArgs parseWithYaml(String agentArgs) {
+        Map<String, String> merged = new java.util.LinkedHashMap<>(CloudMeterConfig.loadYamlMap());
+        merged.putAll(parseMap(agentArgs));   // agent args win
+        return buildFromMap(merged);
+    }
+
+    private static CliArgs buildFromMap(Map<String, String> map) {
         Builder b = new Builder();
         b.provider        = parseProvider(map.getOrDefault("provider", ""));
         b.region          = mapGet(map, "region",      DEFAULT_REGION);

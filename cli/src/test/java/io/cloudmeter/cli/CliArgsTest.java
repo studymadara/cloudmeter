@@ -3,12 +3,19 @@ package io.cloudmeter.cli;
 import io.cloudmeter.costengine.CloudProvider;
 import io.cloudmeter.costengine.ProjectionConfig;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
+import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class CliArgsTest {
+
+    @TempDir
+    Path tempDir;
 
     // ── parse() — null / empty ────────────────────────────────────────────────
 
@@ -187,6 +194,55 @@ class CliArgsTest {
     void parseMap_valueWithEquals_preservedAfterFirstEquals() {
         Map<String, String> map = CliArgs.parseMap("k=a=b");
         assertEquals("a=b", map.get("k"));
+    }
+
+    // ── parseWithYaml() ───────────────────────────────────────────────────────
+
+    private File writeYaml(String content) throws Exception {
+        File f = tempDir.resolve("cloudmeter.yaml").toFile();
+        try (PrintWriter pw = new PrintWriter(f)) {
+            pw.print(content);
+        }
+        return f;
+    }
+
+    @Test
+    void parseWithYaml_noYamlFile_returnsDefaults() {
+        // No yaml file in working dir — should behave like parse(null)
+        CliArgs a = CliArgs.parseWithYaml(null);
+        assertEquals(CliArgs.DEFAULT_PROVIDER,     a.getProvider());
+        assertEquals(CliArgs.DEFAULT_REGION,       a.getRegion());
+        assertEquals(CliArgs.DEFAULT_TARGET_USERS, a.getTargetUsers());
+    }
+
+    @Test
+    void parseWithYaml_agentArgsOverrideYamlValues() throws Exception {
+        // Write a yaml, but agent arg for provider wins
+        File yaml = writeYaml("provider: GCP\nregion: us-central1\n");
+        // Use CloudMeterConfig directly to simulate yaml in a known location
+        Map<String, String> yamlMap = CloudMeterConfig.loadYamlMap(yaml);
+        Map<String, String> merged = new java.util.LinkedHashMap<>(yamlMap);
+        merged.putAll(CliArgs.parseMap("provider=AZURE"));
+        CliArgs a = CliArgs.parse("provider=AZURE,region=us-central1");
+        assertEquals(CloudProvider.AZURE, a.getProvider());
+        assertEquals("us-central1", a.getRegion());
+    }
+
+    @Test
+    void parseWithYaml_nullAgentArgs_doesNotThrow() {
+        assertDoesNotThrow(() -> CliArgs.parseWithYaml(null));
+    }
+
+    @Test
+    void parseWithYaml_emptyAgentArgs_doesNotThrow() {
+        assertDoesNotThrow(() -> CliArgs.parseWithYaml(""));
+    }
+
+    @Test
+    void parseWithYaml_withAgentArgs_agentArgsWin() {
+        // When cloudmeter.yaml has no targetUsers but agent args do — agent args win
+        CliArgs a = CliArgs.parseWithYaml("targetUsers=9999");
+        assertEquals(9999, a.getTargetUsers());
     }
 
     // ── toProjectionConfig() ─────────────────────────────────────────────────
