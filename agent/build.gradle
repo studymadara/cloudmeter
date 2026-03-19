@@ -20,8 +20,8 @@ dependencies {
     implementation project(':cost-engine')
     implementation project(':reporter')
     implementation project(':cli')
-    implementation 'net.bytebuddy:byte-buddy:1.15.11'
-    implementation 'net.bytebuddy:byte-buddy-agent:1.15.11'
+    implementation 'net.bytebuddy:byte-buddy:1.18.7'
+    implementation 'net.bytebuddy:byte-buddy-agent:1.18.7'
 
     // Mockito available for MXBean mocking in ThreadStateCollectorTest
     // (already declared in root subprojects block, listed here for clarity)
