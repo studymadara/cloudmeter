@@ -2,14 +2,14 @@ plugins {
     id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
-// Agent is a skeleton at this stage — instrumentation code added in subsequent commits.
-// Coverage threshold is raised as each instrumentation class is implemented.
+// Coverage threshold for the agent module.
+// HttpInstrumentation.buildAndInstall() requires a live JVM agent and is not reachable
+// in unit tests, so 0.90 is the realistic ceiling for this module.
 jacocoTestCoverageVerification {
     violationRules {
         rule {
             limit {
-                // Skeleton module — threshold raised as instrumentation code is added.
-                minimum = 0.80
+                minimum = 0.90
             }
         }
     }
@@ -19,6 +19,9 @@ dependencies {
     implementation project(':collector')
     implementation 'net.bytebuddy:byte-buddy:1.14.12'
     implementation 'net.bytebuddy:byte-buddy-agent:1.14.12'
+
+    // Mockito available for MXBean mocking in ThreadStateCollectorTest
+    // (already declared in root subprojects block, listed here for clarity)
 }
 
 jar {

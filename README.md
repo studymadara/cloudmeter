@@ -224,8 +224,16 @@ Coverage reports are written to `*/build/reports/jacoco/test/html/index.html`.
 
 ```
 cloudmeter/
-├── collector/      Core data structures, MetricsStore, RouteStatsCalculator
-├── agent/          Java agent entry point, bytecode instrumentation (Byte Buddy)
+├── collector/      RequestContext, MetricsStore (ring buffer), RouteStatsCalculator
+│                   Route normalization · p50/p95/p99 variance tracking
+│
+├── agent/          Java agent entry point (premain + agentmain / dynamic attach)
+│                   HttpInstrumentation  — Byte Buddy intercept of HttpServlet.service()
+│                   HttpServletAdvice    — @Advice enter/exit hooks (javax + jakarta)
+│                   ThreadStateCollector — 10 ms sampler daemon (wait ratio, peak memory)
+│                   ContextPropagatingRunnable — async context hand-off (@Async, CompletableFuture)
+│                   RouteNormalizer      — heuristic {id}/{uuid}/{slug} normalization
+│
 ├── cost-engine/    AWS / GCP / Azure pricing engines, cost projection formula
 ├── reporter/       Terminal, JSON, and dashboard reporters
 └── cli/            attach, report, estimate subcommands
