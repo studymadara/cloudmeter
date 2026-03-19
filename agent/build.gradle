@@ -1,0 +1,47 @@
+plugins {
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
+
+// Agent is a skeleton at this stage — instrumentation code added in subsequent commits.
+// Coverage threshold is raised as each instrumentation class is implemented.
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                // Skeleton module — threshold raised as instrumentation code is added.
+                minimum = 0.80
+            }
+        }
+    }
+}
+
+dependencies {
+    implementation project(':collector')
+    implementation 'net.bytebuddy:byte-buddy:1.14.12'
+    implementation 'net.bytebuddy:byte-buddy-agent:1.14.12'
+}
+
+jar {
+    manifest {
+        attributes(
+            'Premain-Class'         : 'io.cloudmeter.agent.AgentMain',
+            'Agent-Class'           : 'io.cloudmeter.agent.AgentMain',
+            'Can-Redefine-Classes'  : 'true',
+            'Can-Retransform-Classes': 'true'
+        )
+    }
+}
+
+shadowJar {
+    archiveClassifier = ''
+    relocate 'net.bytebuddy',              'io.cloudmeter.shaded.net.bytebuddy'
+    relocate 'com.fasterxml.jackson',      'io.cloudmeter.shaded.com.fasterxml.jackson'
+    manifest {
+        attributes(
+            'Premain-Class'         : 'io.cloudmeter.agent.AgentMain',
+            'Agent-Class'           : 'io.cloudmeter.agent.AgentMain',
+            'Can-Redefine-Classes'  : 'true',
+            'Can-Retransform-Classes': 'true'
+        )
+    }
+}

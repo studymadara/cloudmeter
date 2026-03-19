@@ -1,0 +1,60 @@
+plugins {
+    id 'java'
+    id 'jacoco'
+}
+
+allprojects {
+    group = 'io.cloudmeter'
+    version = '0.1.0'
+
+    repositories {
+        mavenCentral()
+    }
+}
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'jacoco'
+
+    java {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    dependencies {
+        testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+        testImplementation 'org.mockito:mockito-core:5.11.0'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+
+    test {
+        useJUnitPlatform()
+        finalizedBy jacocoTestReport
+    }
+
+    jacocoTestReport {
+        dependsOn test
+        reports {
+            xml.required = true
+            html.required = true
+        }
+    }
+
+    // Coverage thresholds are defined per-module in each module's build.gradle.
+    // This ensures skeleton modules (agent) can use a lower threshold until
+    // instrumentation code is added. Fully-implemented modules must enforce 0.99.
+    check.dependsOn jacocoTestCoverageVerification
+}
+
+// Aggregate coverage across all submodules
+task jacocoRootReport(type: JacocoReport, group: 'verification') {
+    description = 'Generates an aggregate coverage report for all subprojects'
+    dependsOn subprojects.test
+    sourceDirectories.from = files(subprojects.sourceSets.main.allSource.srcDirs)
+    classDirectories.from  = files(subprojects.sourceSets.main.output)
+    executionData.from      = files(subprojects.jacocoTestReport.executionData)
+    reports {
+        xml.required  = true
+        html.required = true
+    }
+}

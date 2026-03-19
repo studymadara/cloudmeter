@@ -1,0 +1,15 @@
+// Collector module — core data structures, MetricsStore, RouteStatsCalculator
+// No external dependencies; pure Java 8 compatible code.
+dependencies {
+    // none beyond test deps inherited from root
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.99
+            }
+        }
+    }
+}

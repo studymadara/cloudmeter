@@ -1,0 +1,5 @@
+dependencies {
+    implementation project(':collector')
+    implementation project(':cost-engine')
+    implementation project(':reporter')
+}
