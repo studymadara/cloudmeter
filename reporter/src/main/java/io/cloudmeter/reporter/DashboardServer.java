@@ -4,6 +4,8 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import io.cloudmeter.collector.MetricsStore;
+import io.cloudmeter.collector.RouteStats;
+import io.cloudmeter.collector.RouteStatsCalculator;
 import io.cloudmeter.costengine.CostProjector;
 import io.cloudmeter.costengine.EndpointCostProjection;
 import io.cloudmeter.costengine.ProjectionConfig;
@@ -59,6 +61,7 @@ public final class DashboardServer {
     public void start() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", port), 0);
         server.createContext("/api/projections",     new ProjectionsHandler());
+        server.createContext("/api/stats",           new StatsHandler());
         server.createContext("/api/recording/start", new RecordingStartHandler());
         server.createContext("/api/recording/stop",  new RecordingStopHandler());
         server.createContext("/",                    new StaticHandler());
@@ -97,6 +100,24 @@ public final class DashboardServer {
             ByteArrayOutputStream buf = new ByteArrayOutputStream();
             JsonReporter.print(projections, config, new PrintStream(buf, true, "UTF-8"));
             byte[] body = buf.toByteArray();
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
+            exchange.sendResponseHeaders(200, body.length);
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(body);
+            }
+        }
+    }
+
+    private class StatsHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendResponse(exchange, 405, "text/plain", "Method Not Allowed");
+                return;
+            }
+            List<RouteStats> stats = new RouteStatsCalculator().calculate(store.getAll());
+            byte[] body = serializeStats(stats).getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "application/json");
             exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
             exchange.sendResponseHeaders(200, body.length);
@@ -163,6 +184,28 @@ public final class DashboardServer {
         InputStream is = DashboardServer.class.getResourceAsStream(
                 "/io/cloudmeter/reporter/dashboard.html");
         return loadFromStream(is);
+    }
+
+    static String serializeStats(List<RouteStats> stats) {
+        StringBuilder sb = new StringBuilder("{\n  \"stats\": [\n");
+        for (int i = 0; i < stats.size(); i++) {
+            RouteStats s = stats.get(i);
+            double ratio = s.getVarianceRatio();
+            String ratioStr = Double.isNaN(ratio) ? "null" : String.format("%.2f", ratio);
+            sb.append("    {\n");
+            sb.append("      \"route\": ").append(JsonReporter.quote(s.getRouteTemplate())).append(",\n");
+            sb.append("      \"requests\": ").append(s.getRequestCount()).append(",\n");
+            sb.append("      \"p50CostUsd\": ").append(String.format("%.6f", s.getP50CostUsd())).append(",\n");
+            sb.append("      \"p95CostUsd\": ").append(String.format("%.6f", s.getP95CostUsd())).append(",\n");
+            sb.append("      \"p99CostUsd\": ").append(String.format("%.6f", s.getP99CostUsd())).append(",\n");
+            sb.append("      \"varianceRatio\": ").append(ratioStr).append(",\n");
+            sb.append("      \"varianceWarning\": ").append(s.hasVarianceWarning()).append("\n");
+            sb.append("    }");
+            if (i < stats.size() - 1) sb.append(",");
+            sb.append("\n");
+        }
+        sb.append("  ]\n}\n");
+        return sb.toString();
     }
 
     static String loadFromStream(InputStream is) {

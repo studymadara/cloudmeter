@@ -89,6 +89,11 @@
       <div id="chart-container"><canvas id="cost-chart"></canvas></div>
     </div>
 
+    <div class="panel">
+      <div class="panel-header">Cost Variance — p50 / p95 / p99 per Request</div>
+      <div id="stats-container"><div class="empty">Waiting for data…</div></div>
+    </div>
+
     <p class="pricing-note" id="pricing-note"></p>
   </main>
 
@@ -215,21 +220,65 @@
     async function startRecording() {
       await fetch('/api/recording/start', { method: 'POST' });
       setStatus('Recording started');
-      fetchProjections();
+      refreshAll();
     }
 
     async function stopRecording() {
       await fetch('/api/recording/stop', { method: 'POST' });
       setStatus('Recording stopped');
-      fetchProjections();
+      refreshAll();
     }
 
     function esc(s) {
       return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
-    fetchProjections();
-    setInterval(fetchProjections, 5000);
+    async function fetchStats() {
+      try {
+        const res = await fetch('/api/stats');
+        if (!res.ok) return;
+        const data = await res.json();
+        renderStats(data.stats || []);
+      } catch (e) { /* silent — stats are supplementary */ }
+    }
+
+    function renderStats(stats) {
+      const container = document.getElementById('stats-container');
+      if (stats.length === 0) {
+        container.innerHTML = '<div class="empty">No data yet — start recording and make some requests.</div>';
+        return;
+      }
+      let html = '<table><thead><tr>' +
+        '<th>Route</th><th>Requests</th>' +
+        '<th>p50 $/req</th><th>p95 $/req</th><th>p99 $/req</th>' +
+        '<th>p95/p50</th><th></th>' +
+        '</tr></thead><tbody>';
+      for (const s of stats) {
+        const warn = s.varianceWarning
+          ? '<span class="budget-warn" title="High variance — some requests cost 1.5× or more than median. Possible missing index or N+1 query.">⚠</span>'
+          : '';
+        const ratio = s.varianceRatio != null ? s.varianceRatio.toFixed(2) + 'x' : '—';
+        html += '<tr>' +
+          '<td class="route">' + esc(s.route) + '</td>' +
+          '<td>' + s.requests + '</td>' +
+          '<td>$' + (s.p50CostUsd || 0).toFixed(6) + '</td>' +
+          '<td>$' + (s.p95CostUsd || 0).toFixed(6) + '</td>' +
+          '<td>$' + (s.p99CostUsd || 0).toFixed(6) + '</td>' +
+          '<td>' + ratio + '</td>' +
+          '<td>' + warn + '</td>' +
+          '</tr>';
+      }
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    }
+
+    function refreshAll() {
+      fetchProjections();
+      fetchStats();
+    }
+
+    refreshAll();
+    setInterval(refreshAll, 5000);
   </script>
 </body>
 </html>

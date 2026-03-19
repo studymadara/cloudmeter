@@ -235,6 +235,51 @@ class DashboardServerTest {
         assertEquals(405, code);
     }
 
+    // ── GET /api/stats ────────────────────────────────────────────────────────
+
+    @Test
+    void getStats_emptyStore_returnsValidJson() throws IOException {
+        server = startServer();
+        String body = httpGet("http://127.0.0.1:" + server.getPort() + "/api/stats");
+        assertTrue(body.contains("\"stats\""));
+    }
+
+    @Test
+    void getStats_withMetrics_containsRouteAndPercentiles() throws IOException {
+        MetricsStore store = new MetricsStore();
+        store.startRecording();
+        for (int i = 0; i < 10; i++) {
+            store.add(RequestMetrics.builder()
+                    .routeTemplate("GET /api/items")
+                    .actualPath("/api/items")
+                    .httpMethod("GET").httpStatusCode(200)
+                    .durationMs(20 + i * 5).cpuCoreSeconds(0.001 * (i + 1))
+                    .peakMemoryBytes(512 * 1024L).egressBytes(100)
+                    .threadWaitRatio(0.0).timestamp(Instant.now())
+                    .warmup(false).build());
+        }
+        server = new DashboardServer(store, config(), 0);
+        server.start();
+        String body = httpGet("http://127.0.0.1:" + server.getPort() + "/api/stats");
+        assertTrue(body.contains("GET /api/items"));
+        assertTrue(body.contains("p50CostUsd"));
+        assertTrue(body.contains("p95CostUsd"));
+        assertTrue(body.contains("varianceRatio"));
+    }
+
+    @Test
+    void getStats_withPostMethod_returns405() throws IOException {
+        server = startServer();
+        int code = httpPostCode("http://127.0.0.1:" + server.getPort() + "/api/stats");
+        assertEquals(405, code);
+    }
+
+    @Test
+    void serializeStats_emptyList_returnsEmptyArray() {
+        String json = DashboardServer.serializeStats(java.util.Collections.emptyList());
+        assertTrue(json.contains("\"stats\": []") || json.contains("\"stats\": [\n  ]"));
+    }
+
     // ── loadDashboardHtml ─────────────────────────────────────────────────────
 
     @Test

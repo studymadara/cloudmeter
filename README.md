@@ -202,6 +202,8 @@ Exit code `1` if any endpoint breaches the budget. Attach `cost-report.json` as 
 | Spring WebFlux / Project Reactor | ❌ v2 |
 | GraalVM native image | ❌ not supported |
 | Virtual threads (Java 21) | ❌ v1 limitation |
+| Spring `@Async` context propagation | ✅ (ThreadPoolTaskExecutor + SimpleAsyncTaskExecutor) |
+| `CompletableFuture` on JVM common pool | ❌ v2 (requires bootstrap injection) |
 
 ---
 

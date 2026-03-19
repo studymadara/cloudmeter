@@ -72,10 +72,12 @@ public final class AgentMain {
         CloudMeterRegistry.init(store);
         CloudMeterLogger.info("MetricsStore ready, recording started");
 
-        // Install Byte Buddy HTTP instrumentation (skipped when Instrumentation is unavailable)
+        // Install Byte Buddy instrumentation (skipped when Instrumentation is unavailable)
         if (inst != null) {
             HttpInstrumentation.install(inst);
             CloudMeterLogger.info("HTTP instrumentation installed");
+            ExecutorInstrumentation.install(inst);
+            CloudMeterLogger.info("Executor instrumentation installed (Spring @Async context propagation)");
         }
 
         // Start the background thread-state sampler at 10 ms intervals
