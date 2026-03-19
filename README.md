@@ -251,3 +251,7 @@ Please read [`arc42.md`](arc42.md) before contributing — it explains every arc
 ## License
 
 Apache 2.0 — see [LICENSE](LICENSE).
+
+---
+
+*Built with [Claude Code](https://claude.ai/claude-code).*
