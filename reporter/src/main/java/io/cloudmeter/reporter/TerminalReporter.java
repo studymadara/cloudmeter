@@ -109,6 +109,7 @@ public final class TerminalReporter {
         out.println("  Pricing: " + config.getProvider()
                 + " on-demand Linux (PricingCatalog " + io.cloudmeter.costengine.PricingCatalog.PRICING_DATE + ")");
         out.println("  Note: costs are standalone per-endpoint estimates (ADR-009).");
+        out.println("  Accuracy: \u00b120% design target (static pricing tables, not validated against real bills).");
         out.println();
     }
 

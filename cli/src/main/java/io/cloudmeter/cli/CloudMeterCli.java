@@ -138,6 +138,10 @@ public final class CloudMeterCli {
             err.println("[cloudmeter] --agent-jar <path> is required for attach");
             return EXIT_ERROR;
         }
+        if (!new java.io.File(agentJar).isFile()) {
+            err.println("[cloudmeter] Agent JAR not found: " + agentJar);
+            return EXIT_ERROR;
+        }
 
         boolean ok = AttachCommand.attach(pid, agentJar, agentArgsBuilder.toString(), out, err);
         return ok ? EXIT_OK : EXIT_ERROR;

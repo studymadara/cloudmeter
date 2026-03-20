@@ -141,6 +141,36 @@ class AttachCommandTest {
         assertDoesNotThrow((org.junit.jupiter.api.function.Executable) ctor::newInstance);
     }
 
+    // ── agent JAR file existence check (CLI level) ────────────────────────────
+
+    @Test
+    void cloudMeterCli_attachSubcommand_nonexistentAgentJar_returnsError() {
+        ByteArrayOutputStream errBuf = new ByteArrayOutputStream();
+        int code = CloudMeterCli.run(new String[]{
+                "attach", "12345",
+                "--agent-jar", "/this/path/does/not/exist.jar"
+        }, sink(), new PrintStream(errBuf), null);
+        assertEquals(CloudMeterCli.EXIT_ERROR, code);
+        assertTrue(errBuf.toString().contains("Agent JAR not found"),
+                "Expected 'Agent JAR not found' but got: " + errBuf);
+    }
+
+    @Test
+    void cloudMeterCli_attachSubcommand_withExistingJar_attemptsAttach() throws Exception {
+        // Use a real temp file so the file-existence check passes, then attach fails on bad PID
+        java.io.File tmpJar = java.io.File.createTempFile("fake-agent-", ".jar");
+        tmpJar.deleteOnExit();
+        ByteArrayOutputStream errBuf = new ByteArrayOutputStream();
+        int code = CloudMeterCli.run(new String[]{
+                "attach", "999999999",
+                "--agent-jar", tmpJar.getAbsolutePath()
+        }, sink(), new PrintStream(errBuf), null);
+        assertEquals(CloudMeterCli.EXIT_ERROR, code);
+        // File check passes; attach fails on bad PID → [cloudmeter] prefix in error
+        assertTrue(errBuf.toString().contains("[cloudmeter]"),
+                "Expected [cloudmeter] prefix but got: " + errBuf);
+    }
+
     // ── via CloudMeterCli ─────────────────────────────────────────────────────
 
     @Test

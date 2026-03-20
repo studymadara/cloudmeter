@@ -43,6 +43,7 @@ public final class AgentMain {
     }
 
     public static void agentmain(String args, Instrumentation inst) {
+        injectBootstrapClasses(inst);
         initialize(args, inst);
     }
 
@@ -72,6 +73,7 @@ public final class AgentMain {
             "io/cloudmeter/collector/RequestContext.class",
             "io/cloudmeter/collector/RequestContextHolder.class",
             "io/cloudmeter/agent/ContextPropagatingRunnable.class",
+            "io/cloudmeter/agent/ContextPropagatingCallable.class",
             "io/cloudmeter/agent/ExecutorInterceptor.class"
         };
         java.io.File tmpFile = null;
@@ -124,6 +126,8 @@ public final class AgentMain {
             CloudMeterLogger.info("Executor instrumentation installed (Spring @Async context propagation)");
             ThreadPoolExecutorInstrumentation.install(inst);
             CloudMeterLogger.info("JVM executor instrumentation installed (ThreadPoolExecutor context propagation)");
+            ForkJoinPoolInstrumentation.install(inst);
+            CloudMeterLogger.info("ForkJoinPool instrumentation installed (CompletableFuture common pool context propagation)");
         }
 
         // Start the background thread-state sampler at 10 ms intervals

@@ -219,7 +219,7 @@ Exit code `1` if any endpoint breaches the budget. Attach `cost-report.json` as 
 | JAX-RS (Jersey 2.x / 3.x, RESTEasy) | ✅ smoke-tested (heuristic route normalization) |
 | AWS / GCP / Azure cost projection | ✅ smoke-tested |
 | Spring `@Async` context propagation | ✅ (ThreadPoolTaskExecutor + SimpleAsyncTaskExecutor) |
-| `CompletableFuture.supplyAsync(supplier, executor)` | ✅ (ThreadPoolExecutor-backed); common pool (ForkJoinPool) 🔲 v0.3.0 |
+| `CompletableFuture.supplyAsync(supplier, executor)` | ✅ (ThreadPoolExecutor-backed + ForkJoinPool common pool) |
 | Spring WebFlux / Project Reactor | ❌ v2 (reactive model incompatible with ThreadLocal propagation) |
 | GraalVM native image | ❌ not supported (`-javaagent` does not work on native) |
 | Virtual threads (Java 21) | ❌ v1 limitation (`ThreadMXBean` CPU time unreliable for virtual threads) |

@@ -74,6 +74,18 @@ class AgentMainTest {
     }
 
     @Test
+    void agentmain_withMockInst_callsBootstrapInjection() throws Exception {
+        Instrumentation mockInst = mock(Instrumentation.class);
+        doNothing().when(mockInst).appendToBootstrapClassLoaderSearch(any(JarFile.class));
+        when(mockInst.isRetransformClassesSupported()).thenReturn(false);
+        when(mockInst.isRedefineClassesSupported()).thenReturn(false);
+        when(mockInst.getAllLoadedClasses()).thenReturn(new Class[0]);
+        assertDoesNotThrow(() -> AgentMain.agentmain(null, mockInst));
+        // agentmain must also inject bootstrap classes (dynamic-attach gap fix)
+        verify(mockInst, atLeastOnce()).appendToBootstrapClassLoaderSearch(any(JarFile.class));
+    }
+
+    @Test
     void initialize_withNullArgs_doesNotThrow() {
         assertDoesNotThrow(() -> AgentMain.initialize(null, null));
     }
