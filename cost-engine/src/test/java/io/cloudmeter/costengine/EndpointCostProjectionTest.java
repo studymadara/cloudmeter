@@ -3,7 +3,6 @@ package io.cloudmeter.costengine;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -21,7 +20,7 @@ class EndpointCostProjectionTest {
     @Test
     void constructor_setsAllFields() {
         EndpointCostProjection p = new EndpointCostProjection(
-                "GET /api/users/{id}", 5.0, 500.0, 120.0, 0.012, inst(), curve(), false, 42.0, 0.005);
+                "GET /api/users/{id}", 5.0, 500.0, 120.0, 0.012, inst(), curve(), false, 42.0, 0.005, 0.3, 2048.0);
 
         assertEquals("GET /api/users/{id}", p.getRouteTemplate());
         assertEquals(5.0,   p.getObservedRps(),              1e-9);
@@ -33,19 +32,21 @@ class EndpointCostProjectionTest {
         assertFalse(p.isExceedsBudget());
         assertEquals(42.0,  p.getMedianDurationMs(),            1e-9);
         assertEquals(0.005, p.getMedianCpuCoreSecondsPerReq(),  1e-9);
+        assertEquals(0.3,   p.getMedianThreadWaitRatio(),        1e-9);
+        assertEquals(2048.0, p.getMedianEgressBytesPerReq(),     1e-9);
     }
 
     @Test
     void exceedsBudget_true() {
         EndpointCostProjection p = new EndpointCostProjection(
-                "POST /api/export", 1.0, 100.0, 600.0, 0.06, inst(), curve(), true, 150.0, 0.05);
+                "POST /api/export", 1.0, 100.0, 600.0, 0.06, inst(), curve(), true, 150.0, 0.05, 0.0, 0.0);
         assertTrue(p.isExceedsBudget());
     }
 
     @Test
     void costCurve_isUnmodifiable() {
         EndpointCostProjection p = new EndpointCostProjection(
-                "GET /x", 1, 10, 5.0, 0.0005, inst(), curve(), false, 0.0, 0.0);
+                "GET /x", 1, 10, 5.0, 0.0005, inst(), curve(), false, 0.0, 0.0, 0.0, 0.0);
         assertThrows(UnsupportedOperationException.class,
                 () -> p.getCostCurve().add(new ScalePoint(9_999, 99.0)));
     }
@@ -53,25 +54,25 @@ class EndpointCostProjectionTest {
     @Test
     void nullRouteTemplate_throws() {
         assertThrows(NullPointerException.class, () ->
-                new EndpointCostProjection(null, 1, 10, 5.0, 0.0005, inst(), curve(), false, 0.0, 0.0));
+                new EndpointCostProjection(null, 1, 10, 5.0, 0.0005, inst(), curve(), false, 0.0, 0.0, 0.0, 0.0));
     }
 
     @Test
     void nullInstance_throws() {
         assertThrows(NullPointerException.class, () ->
-                new EndpointCostProjection("GET /x", 1, 10, 5.0, 0.0005, null, curve(), false, 0.0, 0.0));
+                new EndpointCostProjection("GET /x", 1, 10, 5.0, 0.0005, null, curve(), false, 0.0, 0.0, 0.0, 0.0));
     }
 
     @Test
     void nullCostCurve_throws() {
         assertThrows(NullPointerException.class, () ->
-                new EndpointCostProjection("GET /x", 1, 10, 5.0, 0.0005, inst(), null, false, 0.0, 0.0));
+                new EndpointCostProjection("GET /x", 1, 10, 5.0, 0.0005, inst(), null, false, 0.0, 0.0, 0.0, 0.0));
     }
 
     @Test
     void toString_containsKeyInfo() {
         EndpointCostProjection p = new EndpointCostProjection(
-                "DELETE /api/items/{id}", 2.5, 250.0, 99.99, 0.01, inst(), curve(), true, 80.0, 0.02);
+                "DELETE /api/items/{id}", 2.5, 250.0, 99.99, 0.01, inst(), curve(), true, 80.0, 0.02, 0.0, 0.0);
         String s = p.toString();
         assertTrue(s.contains("DELETE /api/items/{id}"));
         assertTrue(s.contains("99.99"));

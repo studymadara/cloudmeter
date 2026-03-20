@@ -226,6 +226,57 @@ Exit code `1` if any endpoint breaches the budget. Attach `cost-report.json` as 
 
 ---
 
+## Docker & Kubernetes
+
+### Docker
+
+Add the agent JAR to your image and set `JAVA_TOOL_OPTIONS`:
+
+```dockerfile
+FROM eclipse-temurin:21-jre
+COPY cloudmeter-agent-0.2.0.jar /opt/cloudmeter/agent.jar
+COPY your-app.jar /app.jar
+ENV JAVA_TOOL_OPTIONS="-javaagent:/opt/cloudmeter/agent.jar=provider=AWS,region=us-east-1,targetUsers=1000"
+EXPOSE 8080 7777
+CMD ["java", "-jar", "/app.jar"]
+```
+
+The dashboard binds on `:7777` inside the container — expose it if you want to access it from the host.
+
+### Kubernetes
+
+Use an init container to supply the agent JAR without baking it into your app image:
+
+```yaml
+initContainers:
+  - name: cloudmeter-agent
+    image: busybox
+    command: ["sh", "-c", "wget -O /agent/cloudmeter-agent.jar https://github.com/studymadara/cloudmeter/releases/download/v0.2.0/cloudmeter-agent-0.2.0.jar"]
+    volumeMounts:
+      - name: agent-vol
+        mountPath: /agent
+
+containers:
+  - name: your-app
+    env:
+      - name: JAVA_TOOL_OPTIONS
+        value: "-javaagent:/agent/cloudmeter-agent.jar=provider=AWS,region=us-east-1,targetUsers=1000"
+    ports:
+      - containerPort: 8080
+      - containerPort: 7777   # CloudMeter dashboard
+    volumeMounts:
+      - name: agent-vol
+        mountPath: /agent
+
+volumes:
+  - name: agent-vol
+    emptyDir: {}
+```
+
+> **Note**: The dashboard on `:7777` is local-only by design. Do not expose it via a LoadBalancer or Ingress in production — use `kubectl port-forward` for development access.
+
+---
+
 ## What CloudMeter does NOT do
 
 - Read your AWS/GCP/Azure account (no credentials ever required)

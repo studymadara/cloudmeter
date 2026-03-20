@@ -4,6 +4,7 @@ import io.cloudmeter.costengine.EndpointCostProjection;
 import io.cloudmeter.costengine.ProjectionConfig;
 
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -56,6 +57,7 @@ public final class TerminalReporter {
 
         out.println(DIVIDER);
         printFooter(totalMonthly, config, anyExceeds, out);
+        printHints(projections, out);
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
@@ -111,6 +113,66 @@ public final class TerminalReporter {
         out.println("  Note: costs are standalone per-endpoint estimates (ADR-009).");
         out.println("  Accuracy: \u00b120% design target (static pricing tables, not validated against real bills).");
         out.println();
+    }
+
+    // ── Actionability hints ───────────────────────────────────────────────────
+
+    /**
+     * Prints a "hints" section below the cost table whenever an endpoint shows a
+     * signal worth acting on. Only printed when at least one hint exists.
+     *
+     * Thresholds are intentionally generous — false negatives are worse than false positives
+     * for a developer tool: better to flag something borderline than to stay silent.
+     */
+    static void printHints(List<EndpointCostProjection> projections, PrintStream out) {
+        List<String> lines = new ArrayList<>();
+        for (EndpointCostProjection p : projections) {
+            String hint = buildHint(p);
+            if (hint != null) lines.add(hint);
+        }
+        if (lines.isEmpty()) return;
+        out.println("  Actionability hints:");
+        for (String line : lines) {
+            out.println("    " + line);
+        }
+        out.println();
+    }
+
+    static String buildHint(EndpointCostProjection p) {
+        List<String> signals = new ArrayList<>();
+
+        double cpuMs = p.getMedianCpuCoreSecondsPerReq() * 1000.0;
+        if (cpuMs > 20.0) {
+            signals.add(String.format(
+                    "CPU-intensive (%.0f ms/req) — consider caching or reducing computation", cpuMs));
+        }
+
+        if (p.getMedianThreadWaitRatio() > 0.5) {
+            signals.add(String.format(
+                    "thread wait %.0f%% — likely I/O bound; check connection pool or switch to async I/O",
+                    p.getMedianThreadWaitRatio() * 100));
+        }
+
+        if (p.getMedianEgressBytesPerReq() > 10_240) {
+            signals.add(String.format(
+                    "%.0f KB/req egress — consider gzip compression or pagination",
+                    p.getMedianEgressBytesPerReq() / 1024.0));
+        }
+
+        if (p.getMedianDurationMs() > 500) {
+            signals.add(String.format(
+                    "P50 latency %.0f ms — check for downstream bottleneck",
+                    p.getMedianDurationMs()));
+        }
+
+        if (signals.isEmpty()) return null;
+
+        StringBuilder sb = new StringBuilder(p.getRouteTemplate()).append("  \u2192  ");
+        for (int i = 0; i < signals.size(); i++) {
+            if (i > 0) sb.append("; ");
+            sb.append(signals.get(i));
+        }
+        return sb.toString();
     }
 
     // ── String utilities ──────────────────────────────────────────────────────

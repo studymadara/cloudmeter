@@ -22,8 +22,10 @@ public final class EndpointCostProjection {
     private final InstanceType  recommendedInstance;       // cheapest instance meeting CPU need
     private final List<ScalePoint> costCurve;              // 12 points, 100 → 1 M users
     private final boolean       exceedsBudget;             // true if monthlyCost > budgetUsd
-    private final double        medianDurationMs;          // median request duration in ms
+    private final double        medianDurationMs;           // median request duration in ms
     private final double        medianCpuCoreSecondsPerReq; // median CPU core-seconds per request
+    private final double        medianThreadWaitRatio;      // median thread wait ratio (0.0–1.0)
+    private final double        medianEgressBytesPerReq;    // median egress bytes per request
 
     public EndpointCostProjection(
             String routeTemplate,
@@ -35,7 +37,9 @@ public final class EndpointCostProjection {
             List<ScalePoint> costCurve,
             boolean exceedsBudget,
             double medianDurationMs,
-            double medianCpuCoreSecondsPerReq) {
+            double medianCpuCoreSecondsPerReq,
+            double medianThreadWaitRatio,
+            double medianEgressBytesPerReq) {
 
         this.routeTemplate              = Objects.requireNonNull(routeTemplate, "routeTemplate");
         this.recommendedInstance        = Objects.requireNonNull(recommendedInstance, "recommendedInstance");
@@ -48,6 +52,8 @@ public final class EndpointCostProjection {
         this.exceedsBudget              = exceedsBudget;
         this.medianDurationMs           = medianDurationMs;
         this.medianCpuCoreSecondsPerReq = medianCpuCoreSecondsPerReq;
+        this.medianThreadWaitRatio      = medianThreadWaitRatio;
+        this.medianEgressBytesPerReq    = medianEgressBytesPerReq;
     }
 
     public String        getRouteTemplate()               { return routeTemplate; }
@@ -60,6 +66,8 @@ public final class EndpointCostProjection {
     public boolean       isExceedsBudget()                 { return exceedsBudget; }
     public double        getMedianDurationMs()             { return medianDurationMs; }
     public double        getMedianCpuCoreSecondsPerReq()   { return medianCpuCoreSecondsPerReq; }
+    public double        getMedianThreadWaitRatio()        { return medianThreadWaitRatio; }
+    public double        getMedianEgressBytesPerReq()      { return medianEgressBytesPerReq; }
 
     @Override
     public String toString() {

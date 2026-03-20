@@ -4,6 +4,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 
 @RestController
@@ -61,6 +62,18 @@ public class SmokeTestController2 {
             err.put("error", e.getMessage());
             return err;
         }
+    }
+
+    @GetMapping("/async-pool")
+    public Map<String, Object> asyncPool() throws Exception {
+        // Uses ForkJoinPool.commonPool() — no executor argument — tests ForkJoinPool instrumentation
+        CompletableFuture<Long> future = CompletableFuture.supplyAsync(() -> cpuWork(2_000_000));
+        long result = future.get();
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", "done");
+        response.put("engine", "forkjoin-common-pool");
+        response.put("checksum", result);
+        return response;
     }
 
     private static long cpuWork(int iterations) {

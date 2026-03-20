@@ -72,7 +72,7 @@ final class JsonProjectionParser {
 
         InstanceType inst = resolveInstance(instName, config.getProvider());
         return new EndpointCostProjection(route, obsRps, projRps, monthly, perUser,
-                inst, curve, exceeds, durationMs, cpuMs / 1000.0);
+                inst, curve, exceeds, durationMs, cpuMs / 1000.0, 0.0, 0.0);
     }
 
     private static List<ScalePoint> parseCurve(String seg) {

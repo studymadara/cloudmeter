@@ -29,7 +29,7 @@ class TerminalReporterTest {
         List<ScalePoint> curve = Arrays.asList(
                 new ScalePoint(100, 1.0), new ScalePoint(1_000, 10.0));
         return new EndpointCostProjection(route, 1.0, 100.0, monthly,
-                monthly / 1_000, inst, curve, exceeds, 30.0, 0.005);
+                monthly / 1_000, inst, curve, exceeds, 30.0, 0.005, 0.1, 512.0);
     }
 
     private static String capture(List<EndpointCostProjection> projs, ProjectionConfig cfg) {
@@ -109,6 +109,79 @@ class TerminalReporterTest {
         String out = capture(Collections.emptyList(), config(0));
         assertTrue(out.contains("AWS"));
         assertTrue(out.contains("us-east-1"));
+    }
+
+    // ── Actionability hints ───────────────────────────────────────────────────
+
+    private static EndpointCostProjection projWith(String route, double cpuSec,
+            double waitRatio, double egressBytes, double durationMs) {
+        InstanceType inst = new InstanceType("t3.micro", CloudProvider.AWS, 2, 1, 0.0104);
+        List<ScalePoint> curve = Arrays.asList(new ScalePoint(100, 1.0));
+        return new EndpointCostProjection(route, 1.0, 100.0, 10.0, 0.01,
+                inst, curve, false, durationMs, cpuSec, waitRatio, egressBytes);
+    }
+
+    @Test
+    void buildHint_cpuIntensive_containsCpuSignal() {
+        EndpointCostProjection p = projWith("GET /heavy", 0.05, 0.1, 100, 50);
+        String hint = TerminalReporter.buildHint(p);
+        assertNotNull(hint);
+        assertTrue(hint.contains("CPU-intensive"), "hint: " + hint);
+    }
+
+    @Test
+    void buildHint_highWaitRatio_containsIoBound() {
+        EndpointCostProjection p = projWith("GET /db", 0.001, 0.8, 100, 50);
+        String hint = TerminalReporter.buildHint(p);
+        assertNotNull(hint);
+        assertTrue(hint.contains("I/O bound") || hint.contains("thread wait"), "hint: " + hint);
+    }
+
+    @Test
+    void buildHint_highEgress_containsEgressSignal() {
+        EndpointCostProjection p = projWith("GET /export", 0.001, 0.1, 50_000, 50);
+        String hint = TerminalReporter.buildHint(p);
+        assertNotNull(hint);
+        assertTrue(hint.contains("egress"), "hint: " + hint);
+    }
+
+    @Test
+    void buildHint_slowP50_containsLatencySignal() {
+        EndpointCostProjection p = projWith("GET /slow", 0.001, 0.1, 100, 800);
+        String hint = TerminalReporter.buildHint(p);
+        assertNotNull(hint);
+        assertTrue(hint.contains("P50 latency"), "hint: " + hint);
+    }
+
+    @Test
+    void buildHint_noSignals_returnsNull() {
+        EndpointCostProjection p = projWith("GET /cheap", 0.001, 0.1, 100, 10);
+        assertNull(TerminalReporter.buildHint(p));
+    }
+
+    @Test
+    void printHints_withHintableEndpoint_printsHintsSection() {
+        EndpointCostProjection p = projWith("GET /heavy", 0.05, 0.1, 100, 50);
+        ByteArrayOutputStream buf = new ByteArrayOutputStream();
+        TerminalReporter.printHints(Arrays.asList(p), new PrintStream(buf));
+        String out = buf.toString();
+        assertTrue(out.contains("Actionability hints"), "out: " + out);
+        assertTrue(out.contains("GET /heavy"), "out: " + out);
+    }
+
+    @Test
+    void printHints_noHints_printsNothing() {
+        EndpointCostProjection p = projWith("GET /cheap", 0.001, 0.1, 100, 10);
+        ByteArrayOutputStream buf = new ByteArrayOutputStream();
+        TerminalReporter.printHints(Arrays.asList(p), new PrintStream(buf));
+        assertEquals("", buf.toString());
+    }
+
+    @Test
+    void print_withCpuHeavyRoute_containsHintsSection() {
+        EndpointCostProjection p = projWith("POST /process", 0.1, 0.1, 100, 200);
+        String out = capture(Arrays.asList(p), config(0));
+        assertTrue(out.contains("Actionability hints"), "output: " + out);
     }
 
     // ── String utilities ──────────────────────────────────────────────────────

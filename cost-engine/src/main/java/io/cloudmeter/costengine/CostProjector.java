@@ -106,9 +106,10 @@ public final class CostProjector {
         double scaleFactor    = config.getTargetTotalRps() / totalObservedRps;
         double projectedRps   = observedRps * scaleFactor;
 
-        double medianCpu      = median(extractCpu(entries));
-        double medianEgress   = median(extractEgress(entries));
-        double medianDuration = median(extractDuration(entries));
+        double medianCpu       = median(extractCpu(entries));
+        double medianEgress    = median(extractEgress(entries));
+        double medianDuration  = median(extractDuration(entries));
+        double medianWaitRatio = median(extractWaitRatio(entries));
 
         double projectedMonthlyCost = computeMonthlyCost(
                 projectedRps, medianCpu, medianEgress, instances, egressRatePerGib);
@@ -127,7 +128,8 @@ public final class CostProjector {
                 route, observedRps, projectedRps,
                 projectedMonthlyCost, costPerUser,
                 recommended, costCurve, exceedsBudget,
-                medianDuration, medianCpu);
+                medianDuration, medianCpu,
+                medianWaitRatio, medianEgress);
     }
 
     // ── Cost curve ────────────────────────────────────────────────────────────
@@ -236,6 +238,14 @@ public final class CostProjector {
         List<Double> result = new ArrayList<>(entries.size());
         for (RequestMetrics m : entries) {
             result.add((double) m.getDurationMs());
+        }
+        return result;
+    }
+
+    private static List<Double> extractWaitRatio(List<RequestMetrics> entries) {
+        List<Double> result = new ArrayList<>(entries.size());
+        for (RequestMetrics m : entries) {
+            result.add(m.getThreadWaitRatio());
         }
         return result;
     }

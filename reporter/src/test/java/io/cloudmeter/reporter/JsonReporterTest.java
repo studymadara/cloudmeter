@@ -31,7 +31,7 @@ class JsonReporterTest {
                 new ScalePoint(100, 1.0),
                 new ScalePoint(1_000, 10.0));
         return new EndpointCostProjection(route, 2.5, 250.0, monthly,
-                monthly / 1_000, inst, curve, exceeds, 45.0, 0.01);
+                monthly / 1_000, inst, curve, exceeds, 45.0, 0.01, 0.0, 0.0);
     }
 
     private static String capture(List<EndpointCostProjection> projs, ProjectionConfig cfg) {
