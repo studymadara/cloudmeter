@@ -1,11 +1,12 @@
-use std::collections::HashMap;
-use crate::model::{EndpointCostProjection, InstanceType, RequestMetrics, ScalePoint, WarmupSummary};
-use crate::pricing::{get_egress_rate_per_gib, get_instances, GIB_IN_BYTES, HOURS_PER_MONTH};
 use crate::config::Config;
+use crate::model::{
+    EndpointCostProjection, InstanceType, RequestMetrics, ScalePoint, WarmupSummary,
+};
+use crate::pricing::{get_egress_rate_per_gib, get_instances, GIB_IN_BYTES, HOURS_PER_MONTH};
+use std::collections::HashMap;
 
 const SCALE_USERS: &[u32] = &[
-    100, 200, 500, 1_000, 2_000, 5_000,
-    10_000, 20_000, 50_000, 100_000, 500_000, 1_000_000,
+    100, 200, 500, 1_000, 2_000, 5_000, 10_000, 20_000, 50_000, 100_000, 500_000, 1_000_000,
 ];
 
 const WARMUP_SECONDS: u32 = 30;
@@ -18,7 +19,11 @@ pub fn project(metrics: &[RequestMetrics], config: &Config) -> Vec<EndpointCostP
 
     let recording_duration = 300.0_f64; // 5-minute rolling window
     let total_observed_rps = live.len() as f64 / recording_duration;
-    let safe_observed_rps = if total_observed_rps > 0.0 { total_observed_rps } else { 1.0 };
+    let safe_observed_rps = if total_observed_rps > 0.0 {
+        total_observed_rps
+    } else {
+        1.0
+    };
 
     let target_total_rps = config.target_users as f64 * config.requests_per_user_per_second;
     let instances = get_instances(&config.provider);
@@ -27,17 +32,32 @@ pub fn project(metrics: &[RequestMetrics], config: &Config) -> Vec<EndpointCostP
     // Group by route
     let mut by_route: HashMap<&str, Vec<&RequestMetrics>> = HashMap::new();
     for m in &live {
-        by_route.entry(m.route_template.as_str()).or_default().push(m);
+        by_route
+            .entry(m.route_template.as_str())
+            .or_default()
+            .push(m);
     }
 
     let mut results: Vec<EndpointCostProjection> = by_route
         .into_iter()
         .map(|(route, entries)| {
-            project_route(route, &entries, safe_observed_rps, target_total_rps, config, &instances, egress_per_gib)
+            project_route(
+                route,
+                &entries,
+                safe_observed_rps,
+                target_total_rps,
+                config,
+                &instances,
+                egress_per_gib,
+            )
         })
         .collect();
 
-    results.sort_by(|a, b| b.projected_monthly_cost_usd.partial_cmp(&a.projected_monthly_cost_usd).unwrap());
+    results.sort_by(|a, b| {
+        b.projected_monthly_cost_usd
+            .partial_cmp(&a.projected_monthly_cost_usd)
+            .unwrap()
+    });
     results
 }
 
@@ -90,20 +110,53 @@ fn project_route(
     let scale_factor = target_total_rps / total_observed_rps;
     let projected_rps = observed_rps * scale_factor;
 
-    let median_cpu = median(&mut entries.iter().map(|m| m.cpu_core_seconds).collect::<Vec<_>>());
-    let median_egress = median(&mut entries.iter().map(|m| m.egress_bytes as f64).collect::<Vec<_>>());
-    let median_duration = median(&mut entries.iter().map(|m| m.duration_ms as f64).collect::<Vec<_>>());
+    let median_cpu = median(
+        &mut entries
+            .iter()
+            .map(|m| m.cpu_core_seconds)
+            .collect::<Vec<_>>(),
+    );
+    let median_egress = median(
+        &mut entries
+            .iter()
+            .map(|m| m.egress_bytes as f64)
+            .collect::<Vec<_>>(),
+    );
+    let median_duration = median(
+        &mut entries
+            .iter()
+            .map(|m| m.duration_ms as f64)
+            .collect::<Vec<_>>(),
+    );
 
-    let projected_monthly_cost = compute_monthly_cost(projected_rps, median_cpu, median_egress, instances, egress_rate_per_gib);
+    let projected_monthly_cost = compute_monthly_cost(
+        projected_rps,
+        median_cpu,
+        median_egress,
+        instances,
+        egress_rate_per_gib,
+    );
     let cost_per_user = projected_monthly_cost / config.target_users as f64;
     let recommended = select_instance(projected_rps * median_cpu, instances);
 
-    let cost_curve: Vec<ScalePoint> = SCALE_USERS.iter().map(|&scale_users| {
-        let scale_target_rps = scale_users as f64 * config.requests_per_user_per_second;
-        let scaled_rps = observed_rps * (scale_target_rps / total_observed_rps);
-        let cost = compute_monthly_cost(scaled_rps, median_cpu, median_egress, instances, egress_rate_per_gib);
-        ScalePoint { users: scale_users, monthly_cost_usd: (cost * 100.0).round() / 100.0 }
-    }).collect();
+    let cost_curve: Vec<ScalePoint> = SCALE_USERS
+        .iter()
+        .map(|&scale_users| {
+            let scale_target_rps = scale_users as f64 * config.requests_per_user_per_second;
+            let scaled_rps = observed_rps * (scale_target_rps / total_observed_rps);
+            let cost = compute_monthly_cost(
+                scaled_rps,
+                median_cpu,
+                median_egress,
+                instances,
+                egress_rate_per_gib,
+            );
+            ScalePoint {
+                users: scale_users,
+                monthly_cost_usd: (cost * 100.0).round() / 100.0,
+            }
+        })
+        .collect();
 
     let exceeds_budget = config.budget_usd > 0.0 && projected_monthly_cost > config.budget_usd;
 
@@ -131,23 +184,25 @@ fn compute_monthly_cost(
     let required_cores = projected_rps * median_cpu_core_seconds;
     let instance = select_instance(required_cores, instances);
     let seconds_per_month = HOURS_PER_MONTH * 3600.0;
-    let egress_gib_per_month = projected_rps * median_egress_bytes * seconds_per_month / GIB_IN_BYTES;
+    let egress_gib_per_month =
+        projected_rps * median_egress_bytes * seconds_per_month / GIB_IN_BYTES;
     instance.hourly_usd * HOURS_PER_MONTH + egress_gib_per_month * egress_rate_per_gib
 }
 
-fn select_instance<'a>(required_cores: f64, instances: &'a [InstanceType]) -> &'a InstanceType {
-    instances.iter()
+fn select_instance(required_cores: f64, instances: &[InstanceType]) -> &InstanceType {
+    instances
+        .iter()
         .find(|i| i.vcpu >= required_cores)
         .unwrap_or_else(|| instances.last().unwrap())
 }
 
-fn median(values: &mut Vec<f64>) -> f64 {
+fn median(values: &mut [f64]) -> f64 {
     if values.is_empty() {
         return 0.0;
     }
     values.sort_by(|a, b| a.partial_cmp(b).unwrap());
     let mid = values.len() / 2;
-    if values.len() % 2 == 0 {
+    if values.len().is_multiple_of(2) {
         (values[mid - 1] + values[mid]) / 2.0
     } else {
         values[mid]
@@ -161,22 +216,22 @@ mod tests {
 
     #[test]
     fn median_empty() {
-        assert_eq!(0.0, median(&mut vec![]));
+        assert_eq!(0.0, median(&mut []));
     }
 
     #[test]
     fn median_single() {
-        assert_eq!(5.0, median(&mut vec![5.0]));
+        assert_eq!(5.0, median(&mut [5.0]));
     }
 
     #[test]
     fn median_odd() {
-        assert_eq!(3.0, median(&mut vec![1.0, 3.0, 5.0]));
+        assert_eq!(3.0, median(&mut [1.0, 3.0, 5.0]));
     }
 
     #[test]
     fn median_even() {
-        assert_eq!(2.5, median(&mut vec![1.0, 2.0, 3.0, 4.0]));
+        assert_eq!(2.5, median(&mut [1.0, 2.0, 3.0, 4.0]));
     }
 
     #[test]
@@ -219,15 +274,17 @@ mod tests {
             dashboard_port: 7777,
             ingest_port: 7778,
         };
-        let metrics: Vec<RequestMetrics> = (0..10).map(|_| RequestMetrics {
-            route_template: "GET /api/test".into(),
-            http_method: "GET".into(),
-            http_status: 200,
-            duration_ms: 50,
-            cpu_core_seconds: 0.01,
-            egress_bytes: 1024,
-            warmup: false,
-        }).collect();
+        let metrics: Vec<RequestMetrics> = (0..10)
+            .map(|_| RequestMetrics {
+                route_template: "GET /api/test".into(),
+                http_method: "GET".into(),
+                http_status: 200,
+                duration_ms: 50,
+                cpu_core_seconds: 0.01,
+                egress_bytes: 1024,
+                warmup: false,
+            })
+            .collect();
         let projections = project(&metrics, &config);
         assert_eq!(1, projections.len());
         assert_eq!("GET /api/test", projections[0].route);
@@ -265,8 +322,11 @@ mod tests {
             let instances = get_instances(provider);
             assert!(!instances.is_empty());
             for i in 1..instances.len() {
-                assert!(instances[i].hourly_usd >= instances[i-1].hourly_usd,
-                    "{} instances not sorted", provider);
+                assert!(
+                    instances[i].hourly_usd >= instances[i - 1].hourly_usd,
+                    "{} instances not sorted",
+                    provider
+                );
             }
         }
     }
@@ -282,18 +342,23 @@ mod tests {
             dashboard_port: 7777,
             ingest_port: 7778,
         };
-        let metrics: Vec<RequestMetrics> = (0..100).map(|_| RequestMetrics {
-            route_template: "GET /heavy".into(),
-            http_method: "GET".into(),
-            http_status: 200,
-            duration_ms: 500,
-            cpu_core_seconds: 0.5,
-            egress_bytes: 1_000_000,
-            warmup: false,
-        }).collect();
+        let metrics: Vec<RequestMetrics> = (0..100)
+            .map(|_| RequestMetrics {
+                route_template: "GET /heavy".into(),
+                http_method: "GET".into(),
+                http_status: 200,
+                duration_ms: 500,
+                cpu_core_seconds: 0.5,
+                egress_bytes: 1_000_000,
+                warmup: false,
+            })
+            .collect();
         let projections = project(&metrics, &config);
         assert_eq!(1, projections.len());
-        assert!(projections[0].exceeds_budget, "expected exceeds_budget=true");
+        assert!(
+            projections[0].exceeds_budget,
+            "expected exceeds_budget=true"
+        );
     }
 
     #[test]

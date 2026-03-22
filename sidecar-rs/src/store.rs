@@ -1,7 +1,7 @@
-use std::collections::VecDeque;
-use std::sync::{Arc, RwLock};
-use std::sync::atomic::{AtomicBool, Ordering};
 use crate::model::RequestMetrics;
+use std::collections::VecDeque;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, RwLock};
 
 pub const DEFAULT_CAPACITY: usize = 10_000;
 

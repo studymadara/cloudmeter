@@ -194,7 +194,10 @@ async fn dashboard_root_returns_html() {
         content_type
     );
     let body = resp.text().await.unwrap();
-    assert!(body.contains("<!DOCTYPE html") || body.contains("<html"), "response is not HTML");
+    assert!(
+        body.contains("<!DOCTYPE html") || body.contains("<html"),
+        "response is not HTML"
+    );
     handle.abort();
 }
 

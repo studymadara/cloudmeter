@@ -47,7 +47,10 @@ async fn get_projections(State(state): State<AppState>) -> Response {
     let projections = project(&all, &state.config);
     let warmup = compute_warmup_summary(&all, &state.config);
 
-    let total: f64 = projections.iter().map(|p| p.projected_monthly_cost_usd).sum();
+    let total: f64 = projections
+        .iter()
+        .map(|p| p.projected_monthly_cost_usd)
+        .sum();
     let any_exceeds = projections.iter().any(|p| p.exceeds_budget);
 
     let body = json!({
@@ -69,10 +72,9 @@ async fn get_projections(State(state): State<AppState>) -> Response {
     });
 
     let mut response = Json(body).into_response();
-    response.headers_mut().insert(
-        "Access-Control-Allow-Origin",
-        "*".parse().unwrap(),
-    );
+    response
+        .headers_mut()
+        .insert("Access-Control-Allow-Origin", "*".parse().unwrap());
     response
 }
 
