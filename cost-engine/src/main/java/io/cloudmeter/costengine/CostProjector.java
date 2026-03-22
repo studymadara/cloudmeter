@@ -178,6 +178,8 @@ public final class CostProjector {
         double secondsPerMonth   = PricingCatalog.HOURS_PER_MONTH * 3600.0;
         double egressGibPerMonth = projectedRps * medianEgressBytes * secondsPerMonth / GIB_IN_BYTES;
 
+        // lgtm[java/tainted-arithmetic] Values from live pricing are clamped to sane
+        // ranges (hourlyUsd: 0.001–100, egressRate: 0.001–10) in LivePricingFetcher.
         return instance.getHourlyUsd() * PricingCatalog.HOURS_PER_MONTH
              + egressGibPerMonth * egressRatePerGib;
     }
