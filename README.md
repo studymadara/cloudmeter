@@ -4,12 +4,15 @@
 > No APM tool tells you this. CloudMeter does.
 
 [![CI](https://github.com/studymadara/cloudmeter/actions/workflows/ci.yml/badge.svg)](https://github.com/studymadara/cloudmeter/actions/workflows/ci.yml)
+[![CI — Rust](https://github.com/studymadara/cloudmeter/actions/workflows/ci-rust.yml/badge.svg)](https://github.com/studymadara/cloudmeter/actions/workflows/ci-rust.yml)
 [![codecov](https://codecov.io/gh/studymadara/cloudmeter/branch/develop/graph/badge.svg)](https://codecov.io/gh/studymadara/cloudmeter)
 [![GitHub release](https://img.shields.io/github/v/release/studymadara/cloudmeter)](https://github.com/studymadara/cloudmeter/releases/latest)
 [![GitHub downloads](https://img.shields.io/github/downloads/studymadara/cloudmeter/total)](https://github.com/studymadara/cloudmeter/releases)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/studymadara/cloudmeter/badge)](https://scorecard.dev/viewer/?uri=github.com/studymadara/cloudmeter)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Java 8+](https://img.shields.io/badge/Java-8%2B-orange.svg)](https://openjdk.org/)
+[![Python 3.8+](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://python.org/)
+[![Node.js 16+](https://img.shields.io/badge/Node.js-16%2B-brightgreen.svg)](https://nodejs.org/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![GitHub commit activity](https://img.shields.io/github/commit-activity/m/studymadara/cloudmeter)](https://github.com/studymadara/cloudmeter/commits/main)
 
