@@ -602,8 +602,11 @@
     }
     renderTable(projs);
     if (projs.length>0) { currentProj=projs[0]; renderChart(projs[0]); }
-    document.getElementById('pricing-note').textContent =
-      (m.provider||'')+' on-demand Linux · PricingCatalog '+(m.pricingDate||'')+' · Standalone per-endpoint estimates.';
+    const pricingSource = m.pricingSource === 'live' ? '⬤ Live' : '● Static';
+    const pricingLabel  = pricingSource + ' · ' + (m.pricingDate||'') + ' · ' + (m.provider||'') + ' on-demand Linux · Standalone per-endpoint estimates.';
+    document.getElementById('pricing-note').textContent = pricingLabel;
+    const noteEl = document.getElementById('pricing-note');
+    noteEl.style.color = m.pricingSource === 'live' ? '#00a550' : '#717171';
   }
 
   // ── Table ──────────────────────────────────────────────────────────────────

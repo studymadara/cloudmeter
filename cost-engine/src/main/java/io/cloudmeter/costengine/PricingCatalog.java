@@ -24,6 +24,42 @@ public final class PricingCatalog {
     /** Date the embedded pricing tables were last verified against public pricing pages. */
     public static final String PRICING_DATE = "2025-01-01";
 
+    // ── Live-pricing overlay ───────────────────────────────────────────────────
+    // If fetchPrices=true and the fetch succeeds, these replace the compile-time defaults.
+
+    private static volatile String                              liveDate      = null;
+    private static volatile Map<CloudProvider, List<InstanceType>> liveInstances = null;
+    private static volatile Map<CloudProvider, Double>             liveEgress    = null;
+
+    /**
+     * Returns the effective pricing date — live if a successful fetch has been applied,
+     * otherwise the embedded static date.
+     */
+    public static String getPricingDate() {
+        String d = liveDate;
+        return d != null ? d : PRICING_DATE;
+    }
+
+    /**
+     * Applies live-fetched pricing data. Called by {@code LivePricingFetcher} on success.
+     * Thread-safe via volatile writes; reads in {@link #getInstances} and
+     * {@link #getEgressRatePerGib} will see the new values immediately.
+     *
+     * @param date      pricing date string (e.g. "2026-03-22")
+     * @param instances provider → sorted list of InstanceType
+     * @param egress    provider → egress rate per GiB
+     */
+    public static void applyLivePricing(String date,
+                                        Map<CloudProvider, List<InstanceType>> instances,
+                                        Map<CloudProvider, Double> egress) {
+        liveInstances = instances;
+        liveEgress    = egress;
+        liveDate      = date;   // write last — readers see consistent state once date is set
+    }
+
+    /** True if a live pricing update has been successfully applied. */
+    public static boolean isLive() { return liveDate != null; }
+
     /** Hours in an average calendar month (730 = 365 days × 24 hrs / 12 months). */
     public static final double HOURS_PER_MONTH = 730.0;
 
@@ -165,6 +201,11 @@ public final class PricingCatalog {
      */
     public static List<InstanceType> getInstances(CloudProvider provider, String region) {
         if (provider == null) throw new IllegalArgumentException("provider must not be null");
+        Map<CloudProvider, List<InstanceType>> live = liveInstances;
+        if (live != null) {
+            List<InstanceType> result = live.get(provider);
+            if (result != null) return result;
+        }
         return INSTANCE_MAP.get(provider);
     }
 
@@ -176,6 +217,18 @@ public final class PricingCatalog {
      */
     public static double getEgressRatePerGib(CloudProvider provider, String region) {
         if (provider == null) throw new IllegalArgumentException("provider must not be null");
+        Map<CloudProvider, Double> live = liveEgress;
+        if (live != null) {
+            Double rate = live.get(provider);
+            if (rate != null) return rate;
+        }
         return EGRESS_MAP.get(provider);
+    }
+
+    /** Package-private: resets the live overlay. Used in tests only. */
+    static void resetLivePricing() {
+        liveDate      = null;
+        liveInstances = null;
+        liveEgress    = null;
     }
 }

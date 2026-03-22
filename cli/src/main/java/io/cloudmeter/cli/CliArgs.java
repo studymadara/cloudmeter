@@ -34,6 +34,7 @@ public final class CliArgs {
     static final double        DEFAULT_DURATION     = 60.0;
     static final double        DEFAULT_BUDGET       = 0.0;
     static final int           DEFAULT_PORT         = 7777;
+    static final boolean       DEFAULT_FETCH_PRICES = false;
 
     private final CloudProvider     provider;
     private final String            region;
@@ -42,6 +43,7 @@ public final class CliArgs {
     private final double            durationSeconds;
     private final double            budgetUsd;
     private final int               port;
+    private final boolean           fetchPrices;
 
     private CliArgs(Builder b) {
         this.provider        = b.provider;
@@ -51,6 +53,7 @@ public final class CliArgs {
         this.durationSeconds = b.durationSeconds;
         this.budgetUsd       = b.budgetUsd;
         this.port            = b.port;
+        this.fetchPrices     = b.fetchPrices;
     }
 
     /**
@@ -84,6 +87,7 @@ public final class CliArgs {
         b.durationSeconds = parseDouble(map, "duration", DEFAULT_DURATION, 0.0, false);
         b.budgetUsd       = parseDouble(map, "budget",   DEFAULT_BUDGET, 0.0, true);
         b.port            = parseInt(map, "port",        DEFAULT_PORT, 1);
+        b.fetchPrices     = parseBoolean(map, "fetchprices", DEFAULT_FETCH_PRICES);
         return new CliArgs(b);
     }
 
@@ -106,6 +110,7 @@ public final class CliArgs {
     public double        getDurationSeconds() { return durationSeconds; }
     public double        getBudgetUsd()       { return budgetUsd; }
     public int           getPort()            { return port; }
+    public boolean       isFetchPrices()      { return fetchPrices; }
 
     // ── Internal helpers ──────────────────────────────────────────────────────
 
@@ -160,6 +165,12 @@ public final class CliArgs {
         }
     }
 
+    private static boolean parseBoolean(Map<String, String> map, String key, boolean def) {
+        String v = map.get(key);
+        if (v == null) return def;
+        return "true".equalsIgnoreCase(v) || "yes".equalsIgnoreCase(v) || "1".equals(v);
+    }
+
     // ── Builder ───────────────────────────────────────────────────────────────
 
     private static final class Builder {
@@ -170,5 +181,6 @@ public final class CliArgs {
         double        durationSeconds = DEFAULT_DURATION;
         double        budgetUsd       = DEFAULT_BUDGET;
         int           port            = DEFAULT_PORT;
+        boolean       fetchPrices     = DEFAULT_FETCH_PRICES;
     }
 }

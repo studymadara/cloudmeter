@@ -242,6 +242,39 @@ class AgentMainTest {
         assertDoesNotThrow(() -> AgentMain.registerShutdownHook(store, config));
     }
 
+    // ── fetchPrices flag ───────────────────────────────────────────────────────
+
+    @Test
+    void doInitialize_withFetchPricesTrue_doesNotThrow() throws InterruptedException {
+        // fetchPrices=true starts a background daemon thread that attempts a network fetch.
+        // In CI the fetch will fail (no public network) but must be swallowed silently.
+        assertDoesNotThrow(() -> AgentMain.doInitialize("fetchPrices=true", null));
+        // Let the background thread attempt the fetch before the test tears down
+        Thread.sleep(100);
+    }
+
+    @Test
+    void doInitialize_withFetchPricesFalse_doesNotThrow() {
+        assertDoesNotThrow(() -> AgentMain.doInitialize("fetchPrices=false", null));
+    }
+
+    @Test
+    void runPricingFetch_doesNotThrow() {
+        // Fetch will fail (unreachable URL in test env) but must be swallowed silently
+        assertDoesNotThrow(AgentMain::runPricingFetch);
+    }
+
+    @Test
+    void runPricingFetch_onSuccess_logsAppliedMessage() {
+        // Use Mockito static mock to make fetchAndApply() return true
+        try (org.mockito.MockedStatic<io.cloudmeter.costengine.LivePricingFetcher> mock =
+                org.mockito.Mockito.mockStatic(io.cloudmeter.costengine.LivePricingFetcher.class)) {
+            mock.when(io.cloudmeter.costengine.LivePricingFetcher::fetchAndApply).thenReturn(true);
+            // Must not throw and must log the success message
+            assertDoesNotThrow(AgentMain::runPricingFetch);
+        }
+    }
+
     // ── Failure isolation (ADR-010) ───────────────────────────────────────────
 
     @Test

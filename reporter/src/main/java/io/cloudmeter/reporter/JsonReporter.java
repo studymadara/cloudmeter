@@ -37,7 +37,8 @@ public final class JsonReporter {
         sb.append("    \"targetUsers\": ").append(config.getTargetUsers()).append(",\n");
         sb.append("    \"requestsPerUserPerSecond\": ").append(config.getRequestsPerUserPerSecond()).append(",\n");
         sb.append("    \"budgetUsd\": ").append(config.getBudgetUsd()).append(",\n");
-        sb.append("    \"pricingDate\": ").append(quote(PricingCatalog.PRICING_DATE)).append("\n");
+        sb.append("    \"pricingDate\": ").append(quote(PricingCatalog.getPricingDate())).append(",\n");
+        sb.append("    \"pricingSource\": ").append(quote(PricingCatalog.isLive() ? "live" : "static")).append("\n");
         sb.append("  },\n");
 
         sb.append("  \"projections\": [\n");

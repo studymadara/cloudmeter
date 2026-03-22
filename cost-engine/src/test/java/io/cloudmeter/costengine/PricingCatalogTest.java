@@ -105,4 +105,87 @@ class PricingCatalogTest {
         assertThrows(UnsupportedOperationException.class,
                 () -> instances.add(new InstanceType("fake", CloudProvider.AWS, 1, 1, 0.01)));
     }
+
+    // ── Live-pricing overlay ───────────────────────────────────────────────────
+
+    @org.junit.jupiter.api.AfterEach
+    void resetLive() {
+        PricingCatalog.resetLivePricing();
+    }
+
+    @Test
+    void getPricingDate_beforeLiveUpdate_returnsStaticDate() {
+        assertEquals(PricingCatalog.PRICING_DATE, PricingCatalog.getPricingDate());
+    }
+
+    @Test
+    void isLive_beforeLiveUpdate_returnsFalse() {
+        assertFalse(PricingCatalog.isLive());
+    }
+
+    @Test
+    void applyLivePricing_thenGetPricingDate_returnsLiveDate() {
+        PricingCatalog.applyLivePricing("2099-01-01",
+                java.util.Collections.emptyMap(),
+                java.util.Collections.emptyMap());
+        assertEquals("2099-01-01", PricingCatalog.getPricingDate());
+    }
+
+    @Test
+    void applyLivePricing_thenIsLive_returnsTrue() {
+        PricingCatalog.applyLivePricing("2099-01-01",
+                java.util.Collections.emptyMap(),
+                java.util.Collections.emptyMap());
+        assertTrue(PricingCatalog.isLive());
+    }
+
+    @Test
+    void applyLivePricing_overridesInstancesForProvider() {
+        java.util.Map<CloudProvider, List<InstanceType>> liveInstances =
+                new java.util.EnumMap<>(CloudProvider.class);
+        List<InstanceType> liveAws = List.of(new InstanceType("t4g.nano", CloudProvider.AWS, 2, 0.5, 0.0042));
+        liveInstances.put(CloudProvider.AWS, liveAws);
+
+        PricingCatalog.applyLivePricing("2099-01-01", liveInstances,
+                java.util.Collections.emptyMap());
+
+        List<InstanceType> result = PricingCatalog.getInstances(CloudProvider.AWS, "us-east-1");
+        assertEquals(1, result.size());
+        assertEquals("t4g.nano", result.get(0).getName());
+    }
+
+    @Test
+    void applyLivePricing_overridesEgressRate() {
+        java.util.Map<CloudProvider, Double> liveEgress = new java.util.EnumMap<>(CloudProvider.class);
+        liveEgress.put(CloudProvider.AWS, 0.05);
+
+        PricingCatalog.applyLivePricing("2099-01-01",
+                java.util.Collections.emptyMap(), liveEgress);
+
+        assertEquals(0.05, PricingCatalog.getEgressRatePerGib(CloudProvider.AWS, "us-east-1"), 1e-9);
+    }
+
+    @Test
+    void getInstances_liveMapMissingProvider_fallsBackToStatic() {
+        // Apply live pricing for AWS only — GCP should still return static data
+        java.util.Map<CloudProvider, List<InstanceType>> partial = new java.util.EnumMap<>(CloudProvider.class);
+        partial.put(CloudProvider.AWS, List.of());
+        PricingCatalog.applyLivePricing("2099-01-01", partial, java.util.Collections.emptyMap());
+
+        // GCP not in live map — must still return static instances
+        assertFalse(PricingCatalog.getInstances(CloudProvider.GCP, "us-central1").isEmpty());
+    }
+
+    @Test
+    void getEgressRatePerGib_liveMapMissingProvider_fallsBackToStatic() {
+        // Apply live egress for AWS only
+        java.util.Map<CloudProvider, Double> partialEgress = new java.util.EnumMap<>(CloudProvider.class);
+        partialEgress.put(CloudProvider.AWS, 0.05);
+        PricingCatalog.applyLivePricing("2099-01-01",
+                java.util.Collections.emptyMap(), partialEgress);
+
+        // GCP not in live egress map — must return static rate
+        assertEquals(PricingCatalog.GCP_EGRESS_RATE_PER_GIB,
+                PricingCatalog.getEgressRatePerGib(CloudProvider.GCP, "us-central1"), 1e-9);
+    }
 }
