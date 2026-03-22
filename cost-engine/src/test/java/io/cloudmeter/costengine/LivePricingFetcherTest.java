@@ -300,6 +300,37 @@ class LivePricingFetcherTest {
         assertNull(LivePricingFetcher.extractString("{\"key\": }", "key"));
     }
 
+    // ── parseInstanceArray — sanitization guards ──────────────────────────────
+
+    @Test
+    void parse_negativeHourlyUsd_instanceSkipped() {
+        String json = "{\n"
+                + "  \"pricingDate\": \"2099-01-01\",\n"
+                + "  \"egressRatePerGib\": {\"AWS\": 0.09},\n"
+                + "  \"instances\": [\n"
+                + "    {\"name\": \"bad\", \"provider\": \"AWS\", \"vcpus\": 2, \"memoryGb\": 1.0, \"hourlyUsd\": -0.01},\n"
+                + "    {\"name\": \"good\", \"provider\": \"AWS\", \"vcpus\": 2, \"memoryGb\": 1.0, \"hourlyUsd\": 0.01}\n"
+                + "  ]\n"
+                + "}";
+        LivePricingFetcher.ParsedPricing result = LivePricingFetcher.parse(json);
+        List<InstanceType> aws = result.instances.get(CloudProvider.AWS);
+        assertEquals(1, aws.size(), "Instance with negative hourlyUsd must be skipped");
+        assertEquals("good", aws.get(0).getName());
+    }
+
+    @Test
+    void parse_zeroHourlyUsd_instanceSkipped() {
+        String json = "{\n"
+                + "  \"pricingDate\": \"2099-01-01\",\n"
+                + "  \"egressRatePerGib\": {},\n"
+                + "  \"instances\": [\n"
+                + "    {\"name\": \"free\", \"provider\": \"AWS\", \"vcpus\": 2, \"memoryGb\": 1.0, \"hourlyUsd\": 0.0}\n"
+                + "  ]\n"
+                + "}";
+        LivePricingFetcher.ParsedPricing result = LivePricingFetcher.parse(json);
+        assertEquals(0, result.instances.get(CloudProvider.AWS).size());
+    }
+
     // ── ParsedPricing container ───────────────────────────────────────────────
 
     @Test

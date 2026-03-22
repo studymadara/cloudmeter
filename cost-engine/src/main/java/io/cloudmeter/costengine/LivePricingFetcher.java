@@ -156,7 +156,8 @@ public final class LivePricingFetcher {
             Double hourly   = extractDouble(obj, "hourlyUsd");
 
             if (name != null && provider != null && vcpus != null
-                    && memory != null && hourly != null) {
+                    && memory != null && memory > 0 && Double.isFinite(memory)
+                    && hourly != null && hourly > 0 && Double.isFinite(hourly)) {
                 try {
                     CloudProvider cp = CloudProvider.valueOf(provider.toUpperCase());
                     out.get(cp).add(new InstanceType(name, cp, vcpus, memory, hourly));
