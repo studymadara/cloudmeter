@@ -1,12 +1,18 @@
 rootProject.name = 'cloudmeter'
 
+// Core modules
 include 'collector'
 include 'cost-engine'
 include 'agent'
 include 'reporter'
 include 'cli'
+
+// Pipeline integration tests (JUnit, no agent instrumentation)
 include 'integration-test'
-include 'smoke-test'
-include 'smoke-test-sb2'
-include 'smoke-test-servlet'
-include 'smoke-test-jaxrs'
+
+// Sample apps used for local manual testing and the CI e2e job.
+// Grouped under test-apps/ so they don't pollute the root module list.
+include 'test-apps:spring3'
+include 'test-apps:spring2'
+include 'test-apps:servlet'
+include 'test-apps:jaxrs'

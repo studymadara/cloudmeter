@@ -1,0 +1,31 @@
+// Spring Boot 3.x sample app — used by the e2e job to verify the agent
+// instruments Spring MVC (jakarta.servlet stack, Tomcat 10, Spring Boot 3.2.x).
+// Run locally:
+//   ./gradlew :agent:shadowJar :test-apps:spring3:bootJar
+//   java -javaagent:agent/build/libs/agent-*.jar=provider=AWS,targetUsers=1000 \
+//        -jar test-apps/spring3/build/libs/smoke-app.jar
+
+plugins {
+    id 'org.springframework.boot' version '3.2.4'
+    id 'io.spring.dependency-management' version '1.1.4'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+}
+
+// No tests — disable coverage enforcement inherited from root.
+jacocoTestCoverageVerification {
+    violationRules {
+        rule { limit { minimum = 0.00 } }
+    }
+}
+
+bootJar {
+    archiveFileName = 'smoke-app.jar'
+}

@@ -1,18 +1,16 @@
-// JAX-RS smoke test — verifies agent works with Jersey 2.x on embedded Tomcat 9
-// NOT included in CI — manual test harness only.
+// JAX-RS sample app — verifies agent works with Jersey 2.x on embedded Tomcat 9.
+// Run locally:
+//   ./gradlew :agent:shadowJar :test-apps:jaxrs:jar
+//   java -javaagent:agent/build/libs/agent-*.jar=provider=AWS,targetUsers=1000 \
+//        -jar test-apps/jaxrs/build/libs/smoke-app-jaxrs.jar
 
 plugins {
-    id 'java'
     id 'application'
 }
 
 java {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
-}
-
-repositories {
-    mavenCentral()
 }
 
 dependencies {
@@ -30,13 +28,11 @@ jar {
         attributes 'Main-Class': 'io.cloudmeter.smoketestjaxrs.Main'
     }
     from {
-        configurations.runtimeClasspath.collect {
-            it.isDirectory() ? it : zipTree(it)
-        }
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
     }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
-    archiveFileName = 'smoke-test-jaxrs-app.jar'
+    archiveFileName = 'smoke-app-jaxrs.jar'
 }
 
 jacocoTestCoverageVerification {
