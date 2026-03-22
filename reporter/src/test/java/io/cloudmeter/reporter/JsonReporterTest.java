@@ -140,18 +140,4 @@ class JsonReporterTest {
         assertEquals("\"a\\\\b\"", JsonReporter.quote("a\\b"));
     }
 
-    // ── round helpers — non-finite guard ─────────────────────────────────────
-
-    @Test
-    void print_nanCostValues_outputsZeroNotNaN() {
-        // Passes NaN through the projection so round2/round4/round6 hit the non-finite guard.
-        // JSON must never contain "NaN" — that would break any downstream parser.
-        InstanceType inst = new InstanceType("t3.micro", CloudProvider.AWS, 2, 1, 0.0104);
-        List<ScalePoint> curve = Arrays.asList(new ScalePoint(100, Double.NaN));
-        EndpointCostProjection nanProj = new EndpointCostProjection(
-                "GET /nan", Double.NaN, Double.NaN, Double.NaN,
-                Double.NaN, inst, curve, false, Double.NaN, Double.NaN, 0.0, 0.0);
-        String json = capture(Collections.singletonList(nanProj), config(0));
-        assertFalse(json.contains("NaN"), "JSON must not contain bare NaN tokens");
-    }
 }

@@ -97,17 +97,14 @@ public final class JsonReporter {
     }
 
     private static double round2(double v) {
-        if (!Double.isFinite(v)) return 0.0;
         return Math.round(v * 100.0) / 100.0;
     }
 
     private static double round4(double v) {
-        if (!Double.isFinite(v)) return 0.0;
         return Math.round(v * 10000.0) / 10000.0;
     }
 
     private static double round6(double v) {
-        if (!Double.isFinite(v)) return 0.0;
         return Math.round(v * 1000000.0) / 1000000.0;
     }
 }
