@@ -4,281 +4,813 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CloudMeter — Cost Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
-           background: #0f1117; color: #e2e8f0; min-height: 100vh; }
-    header { background: #1a1d27; border-bottom: 1px solid #2d3748; padding: 12px 24px;
-             display: flex; align-items: center; justify-content: space-between; }
-    header h1 { font-size: 1.1rem; color: #63b3ed; letter-spacing: 0.05em; }
-    header .meta { font-size: 0.75rem; color: #718096; }
-    .controls { padding: 12px 24px; display: flex; gap: 10px; align-items: center; }
-    button { cursor: pointer; border: none; border-radius: 6px; padding: 7px 18px;
-             font-size: 0.8rem; font-weight: 600; transition: opacity 0.15s; }
-    button:hover { opacity: 0.85; }
-    #btn-start { background: #38a169; color: #fff; }
-    #btn-stop  { background: #e53e3e; color: #fff; }
-    #status    { font-size: 0.75rem; color: #a0aec0; margin-left: 8px; }
-    main { padding: 0 24px 24px; }
-    .summary-bar { display: flex; gap: 16px; margin-bottom: 16px; }
-    .card { background: #1a1d27; border: 1px solid #2d3748; border-radius: 8px;
-            padding: 14px 20px; flex: 1; }
-    .card .label { font-size: 0.7rem; color: #718096; text-transform: uppercase;
-                   letter-spacing: 0.08em; margin-bottom: 4px; }
-    .card .value { font-size: 1.4rem; font-weight: 700; color: #e2e8f0; }
-    .card .value.warn { color: #fc8181; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #F7F7F7;
+      color: #222222;
+      min-height: 100vh;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────────── */
+    header {
+      background: #FFFFFF;
+      border-bottom: 1px solid #EBEBEB;
+      padding: 0 32px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 1.05rem; font-weight: 700; color: #FF385C;
+      letter-spacing: -0.02em; user-select: none;
+    }
+    .header-right { display: flex; align-items: center; gap: 12px; }
+    .provider-badge {
+      font-size: 0.72rem; font-weight: 600; color: #717171;
+      background: #F7F7F7; border: 1px solid #EBEBEB;
+      border-radius: 20px; padding: 4px 10px;
+    }
+
+    /* ── Buttons + ripple ────────────────────────────────────────────────── */
+    .rec-btn {
+      position: relative; overflow: hidden; cursor: pointer;
+      border: none; border-radius: 8px; padding: 8px 18px;
+      font-size: 0.78rem; font-weight: 600; font-family: inherit;
+      display: flex; align-items: center; gap: 6px; user-select: none;
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+    }
+    .rec-btn:hover  { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .rec-btn:active { transform: translateY(0) scale(0.97); box-shadow: none; }
+    #btn-start { background: #222222; color: #FFFFFF; }
+    #btn-stop  { background: #FF385C; color: #FFFFFF; }
+    .ripple {
+      position: absolute; border-radius: 50%;
+      transform: scale(0); pointer-events: none;
+      animation: ripple-out 0.55s linear forwards;
+      background: rgba(255,255,255,0.28);
+    }
+    @keyframes ripple-out { to { transform: scale(4); opacity: 0; } }
+
+    /* ── Status dot ──────────────────────────────────────────────────────── */
+    .status-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #CCCCCC; flex-shrink: 0; transition: background 0.3s;
+    }
+    .status-dot.live      { background: #00A699; }
+    .status-dot.recording { background: #FF385C; animation: pulse 1.4s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    #status-text { font-size: 0.74rem; color: #717171; }
+
+    /* ── Portal tooltip ──────────────────────────────────────────────────── */
+    /* Rendered at body level — never clipped by overflow:hidden on panels   */
+    #tip-portal {
+      position: fixed;
+      z-index: 9000;
+      pointer-events: none;
+      background: #1A1A1A;
+      color: #E8E8E8;
+      font-size: 0.72rem;
+      font-weight: 400;
+      line-height: 1.55;
+      padding: 9px 13px;
+      border-radius: 8px;
+      width: 240px;
+      white-space: normal;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.22);
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      display: none;
+    }
+    #tip-portal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    #tip-portal::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 5px solid transparent;
+    }
+    #tip-portal.dir-down::before {
+      bottom: 100%;
+      border-bottom-color: #1A1A1A;
+    }
+    #tip-portal.dir-up::before {
+      top: 100%;
+      border-top-color: #1A1A1A;
+    }
+
+    /* ── Tip icon ────────────────────────────────────────────────────────── */
+    .tip {
+      display: inline-flex; align-items: center;
+      cursor: default; position: relative;
+    }
+    .tip-icon {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 15px; height: 15px; border-radius: 50%;
+      background: #EBEBEB; color: #999;
+      font-size: 0.58rem; font-weight: 700; font-style: normal;
+      line-height: 1; flex-shrink: 0; user-select: none;
+      transition: background 0.15s, color 0.15s, transform 0.15s;
+    }
+    .tip:hover .tip-icon {
+      background: #FF385C; color: #FFFFFF; transform: scale(1.1);
+    }
+
+    /* ── Toast ───────────────────────────────────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 28px; left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #222222; color: #FFFFFF;
+      font-size: 0.8rem; font-weight: 500;
+      padding: 11px 22px; border-radius: 8px;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+      z-index: 9999; white-space: nowrap;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── Page body ───────────────────────────────────────────────────────── */
+    main { padding: 28px 32px 48px; max-width: 1400px; margin: 0 auto; }
+
+    /* ── Summary cards ───────────────────────────────────────────────────── */
+    .summary-row {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr;
+      gap: 16px; margin-bottom: 24px;
+    }
+    .card {
+      background: #FFFFFF; border: 1px solid #EBEBEB;
+      border-radius: 12px; padding: 20px 22px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+      cursor: default;
+    }
+    .card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.09); }
+    .card-label {
+      font-size: 0.67rem; font-weight: 600; color: #9B9B9B;
+      text-transform: uppercase; letter-spacing: 0.09em;
+      margin-bottom: 8px; display: flex; align-items: center; gap: 5px;
+    }
+    .card-value {
+      font-size: 1.75rem; font-weight: 800; color: #222222;
+      letter-spacing: -0.03em; line-height: 1; transition: color 0.3s;
+    }
+    .card-value.warn  { color: #FF385C; }
+    .card-value.small { font-size: 1rem; font-weight: 700; letter-spacing: -0.01em; }
+    .card-sub { font-size: 0.7rem; color: #BBBBBB; margin-top: 6px; }
+    .users-card { border-color: #FFDDE2; background: #FFFAFA; }
+    .users-card .card-value { color: #FF385C; }
+
+    /* ── Panel ───────────────────────────────────────────────────────────── */
+    .panel {
+      background: #FFFFFF; border: 1px solid #EBEBEB;
+      border-radius: 12px; margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      /* No overflow:hidden — would clip portal tooltips */
+    }
+    .panel-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid #F2F2F2;
+      font-size: 0.82rem; font-weight: 600; color: #484848;
+      display: flex; align-items: center; gap: 8px;
+      border-radius: 12px 12px 0 0;
+    }
+    .panel-header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .panel-tag {
+      font-size: 0.67rem; font-weight: 500; color: #9B9B9B;
+      background: #F7F7F7; border: 1px solid #EBEBEB;
+      border-radius: 4px; padding: 2px 7px;
+    }
+
+    /* ── Table ───────────────────────────────────────────────────────────── */
     table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
-    th { text-align: left; padding: 8px 12px; color: #718096; font-weight: 600;
-         font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em;
-         border-bottom: 1px solid #2d3748; }
-    td { padding: 8px 12px; border-bottom: 1px solid #1e2330; }
-    tr:hover td { background: #1e2330; }
-    .route { font-family: monospace; color: #90cdf4; }
-    .budget-warn { color: #fc8181; font-weight: 700; }
-    .instance { color: #68d391; font-family: monospace; font-size: 0.78rem; }
-    .panel { background: #1a1d27; border: 1px solid #2d3748; border-radius: 8px;
-             margin-bottom: 16px; overflow: hidden; }
-    .panel-header { padding: 10px 16px; border-bottom: 1px solid #2d3748;
-                    font-size: 0.78rem; color: #a0aec0; font-weight: 600; }
+    th {
+      text-align: left; padding: 10px 20px;
+      color: #9B9B9B; font-weight: 600;
+      font-size: 0.67rem; text-transform: uppercase;
+      letter-spacing: 0.08em; border-bottom: 1px solid #F2F2F2;
+      white-space: nowrap;
+    }
+    td {
+      padding: 13px 20px; border-bottom: 1px solid #F7F7F7;
+      color: #484848; transition: background 0.1s ease;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr { transition: background 0.1s ease; cursor: default; }
+    tbody tr:hover td { background: #FAFAFA; }
+    tbody tr:active td { background: #F2F2F2; }
+
+    /* last row rounded bottom corners */
+    tbody tr:last-child td:first-child { border-bottom-left-radius:  12px; }
+    tbody tr:last-child td:last-child  { border-bottom-right-radius: 12px; }
+
+    .col-route    { font-family:'SF Mono','Fira Code',monospace; color:#FF385C; font-weight:500; font-size:0.79rem; }
+    .col-cost     { font-weight:700; color:#222222; }
+    .col-instance { font-family:monospace; color:#008489; font-size:0.77rem; font-weight:600; }
+    .col-num      { color:#717171; }
+    .budget-flag  { color:#FF385C; font-weight:700; font-size:0.82rem; }
+
+    /* ── Cost curve explorer ─────────────────────────────────────────────── */
+    .explorer-body { padding: 20px; }
+    .slider-row { display:flex; align-items:center; gap:14px; margin-bottom:14px; }
+    .slider-label { font-size:0.78rem; color:#9B9B9B; white-space:nowrap; font-weight:500; }
+
+    input[type=range] {
+      flex:1; -webkit-appearance:none; appearance:none;
+      height:5px; border-radius:3px; background:#EBEBEB;
+      outline:none; cursor:pointer; transition:background 0.2s;
+    }
+    input[type=range]:hover { background:#E0E0E0; }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance:none; width:20px; height:20px;
+      border-radius:50%; background:#FF385C;
+      border:3px solid #FFFFFF;
+      box-shadow:0 2px 6px rgba(255,56,92,0.35);
+      cursor:grab;
+      transition:transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    input[type=range]:active::-webkit-slider-thumb {
+      cursor:grabbing; transform:scale(1.15);
+      box-shadow:0 3px 10px rgba(255,56,92,0.45);
+    }
+    input[type=range]::-moz-range-thumb {
+      width:20px; height:20px; border-radius:50%;
+      background:#FF385C; border:3px solid #FFFFFF;
+      box-shadow:0 2px 6px rgba(255,56,92,0.35); cursor:grab;
+    }
+
+    .slider-readout {
+      background:#FFF5F6; border:1px solid #FFDDE2;
+      border-radius:10px; padding:11px 18px; margin-bottom:16px;
+      display:flex; align-items:baseline; gap:7px;
+      transition:opacity 0.2s;
+    }
+    .readout-users    { font-size:0.8rem; color:#9B9B9B; font-weight:500; }
+    .readout-arrow    { color:#DDDDDD; }
+    .readout-cost     { font-size:1.35rem; font-weight:800; color:#FF385C; letter-spacing:-0.02em; }
+    .readout-mo       { font-size:0.75rem; color:#9B9B9B; }
+    .readout-sep      { color:#DDDDDD; }
+    .readout-instance { font-size:0.75rem; color:#008489; font-family:monospace; font-weight:600; }
+
     canvas { max-height: 260px; }
-    #chart-container { padding: 16px; }
-    .empty { padding: 40px; text-align: center; color: #4a5568; font-size: 0.9rem; }
-    .pricing-note { font-size: 0.7rem; color: #4a5568; padding: 8px 0 0; }
+
+    /* ── Variance badges ─────────────────────────────────────────────────── */
+    .variance-warn { color:#FF385C; }
+    .variance-ok   { color:#484848; }
+    .variance-badge {
+      display:inline-flex; align-items:center; gap:3px;
+      padding:3px 8px; border-radius:20px;
+      font-size:0.68rem; font-weight:600;
+    }
+    .variance-badge.warn { background:#FFF0F1; color:#FF385C; border:1px solid #FFDDE2; }
+    .variance-badge.ok   { background:#F0FAF9; color:#008489; border:1px solid #B2E4E2; }
+
+    /* ── Empty states ────────────────────────────────────────────────────── */
+    .empty { padding:52px 20px; text-align:center; }
+    .empty-icon  { font-size:2rem; margin-bottom:10px; opacity:0.3; }
+    .empty-title { font-size:0.9rem; font-weight:600; color:#AAAAAA; margin-bottom:4px; }
+    .empty-sub   { font-size:0.78rem; color:#CCCCCC; }
+
+    .pricing-note { font-size:0.67rem; color:#CCCCCC; padding:16px 0 0; text-align:center; }
   </style>
 </head>
 <body>
-  <header>
-    <h1>☁ CloudMeter</h1>
-    <span class="meta" id="meta-bar">loading…</span>
-  </header>
 
-  <div class="controls">
-    <button id="btn-start" onclick="startRecording()">▶ Start Recording</button>
-    <button id="btn-stop"  onclick="stopRecording()">■ Stop Recording</button>
-    <span id="status">Connecting…</span>
+<!-- Global tooltip portal — lives at body level, never clipped -->
+<div id="tip-portal"></div>
+<div id="toast"></div>
+
+<header>
+  <div class="logo">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+    </svg>
+    CloudMeter
+  </div>
+  <div class="header-right">
+    <span class="provider-badge" id="provider-badge">—</span>
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-text">Connecting…</span>
+    <button class="rec-btn" id="btn-start" onclick="startRecording(event)">
+      <svg width="7" height="7" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>
+      Start Recording
+    </button>
+    <button class="rec-btn" id="btn-stop" onclick="stopRecording(event)">
+      <svg width="7" height="7" viewBox="0 0 8 8"><rect width="8" height="8" rx="1.5" fill="currentColor"/></svg>
+      Stop Recording
+    </button>
+  </div>
+</header>
+
+<main>
+
+  <div class="summary-row">
+    <div class="card">
+      <div class="card-label">
+        Total projected $/month
+        <span class="tip" data-tip="Sum of each endpoint's standalone projected monthly cost at your target user count. The total can exceed your actual bill — each endpoint is measured in isolation, not as a share of shared infrastructure." data-tip-dir="down">
+          <i class="tip-icon">i</i>
+        </span>
+      </div>
+      <div class="card-value" id="total-cost">—</div>
+      <div class="card-sub" id="total-sub">at target load</div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">
+        Endpoints tracked
+        <span class="tip" data-tip="Distinct API routes CloudMeter has observed traffic on. Path parameters like /users/123 are normalized to /users/{id} so all requests to the same route are grouped together." data-tip-dir="down">
+          <i class="tip-icon">i</i>
+        </span>
+      </div>
+      <div class="card-value" id="endpoint-count">—</div>
+      <div class="card-sub">instrumented routes</div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">
+        Budget alerts
+        <span class="tip" data-tip="Endpoints whose projected monthly cost exceeds the threshold set with the budget= agent argument. Zero means all endpoints are under budget." data-tip-dir="down">
+          <i class="tip-icon">i</i>
+        </span>
+      </div>
+      <div class="card-value" id="budget-alerts">—</div>
+      <div class="card-sub">threshold breaches</div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">
+        Top cost endpoint
+        <span class="tip" data-tip="The single most expensive endpoint at your target load. Fix this first — it has the highest ROI before anything else." data-tip-dir="down">
+          <i class="tip-icon">i</i>
+        </span>
+      </div>
+      <div class="card-value small" id="top-endpoint">—</div>
+      <div class="card-sub" id="top-cost-sub">—</div>
+    </div>
+
+    <div class="card users-card">
+      <div class="card-label">
+        Target users
+        <span class="tip" data-tip="The concurrent user count used to project costs. Set with the targetUsers= agent argument. Use the slider in the Cost Curve panel below to explore any other load without restarting." data-tip-dir="down">
+          <i class="tip-icon">i</i>
+        </span>
+      </div>
+      <div class="card-value" id="target-users-val">—</div>
+      <div class="card-sub">concurrent users projected</div>
+    </div>
   </div>
 
-  <main>
-    <div class="summary-bar">
-      <div class="card">
-        <div class="label">Total $/month</div>
-        <div class="value" id="total-cost">—</div>
-      </div>
-      <div class="card">
-        <div class="label">Endpoints tracked</div>
-        <div class="value" id="endpoint-count">—</div>
-      </div>
-      <div class="card">
-        <div class="label">Budget alerts</div>
-        <div class="value" id="budget-alerts">—</div>
-      </div>
-      <div class="card">
-        <div class="label">Top endpoint</div>
-        <div class="value" id="top-endpoint" style="font-size:0.9rem">—</div>
+  <div class="panel">
+    <div class="panel-header">
+      Endpoint Cost Projections
+      <div class="panel-header-right">
+        <span class="tip" data-tip="Each row is the projected monthly cost if only that endpoint ran at full target load. Standalone estimates — not proportional shares of a shared bill. Accuracy target: ±20%." data-tip-dir="down">
+          <i class="tip-icon">i</i>
+        </span>
+        <span class="panel-tag">standalone · ±20% accuracy</span>
       </div>
     </div>
-
-    <div class="panel">
-      <div class="panel-header">Endpoint Cost Projections</div>
-      <div id="table-container"><div class="empty">Waiting for data…</div></div>
+    <div id="table-container">
+      <div class="empty">
+        <div class="empty-icon">📊</div>
+        <div class="empty-title">No data yet</div>
+        <div class="empty-sub">Click Start Recording, use your app, then watch costs appear.</div>
+      </div>
     </div>
+  </div>
 
-    <div class="panel">
-      <div class="panel-header">Cost Curve — Top Endpoint</div>
-      <div id="chart-container"><canvas id="cost-chart"></canvas></div>
+  <div class="panel">
+    <div class="panel-header">
+      <span id="chart-title">Cost Curve Explorer</span>
+      <div class="panel-header-right">
+        <span class="tip" data-tip="Shows how the top endpoint's monthly cost scales with concurrent users. Drag the slider to explore any load level — the readout shows projected cost and recommended instance at that scale." data-tip-dir="down">
+          <i class="tip-icon">i</i>
+        </span>
+        <span class="panel-tag">drag slider to explore any load</span>
+      </div>
     </div>
-
-    <div class="panel">
-      <div class="panel-header">Cost Variance — p50 / p95 / p99 per Request</div>
-      <div id="stats-container"><div class="empty">Waiting for data…</div></div>
+    <div class="explorer-body">
+      <div class="slider-row">
+        <span class="slider-label">Concurrent users</span>
+        <input type="range" id="user-slider" min="0" max="0" step="1" value="0" oninput="onSlider()" />
+        <span class="slider-label" id="slider-users-label" style="min-width:56px;text-align:right;color:#484848;font-weight:600">—</span>
+      </div>
+      <div class="slider-readout" id="slider-readout" style="display:none">
+        <span class="readout-users" id="ro-users">—</span>
+        <span class="readout-arrow">→</span>
+        <span class="readout-cost" id="ro-cost">—</span>
+        <span class="readout-mo">/mo</span>
+        <span class="readout-sep">·</span>
+        <span class="readout-instance" id="ro-instance">—</span>
+      </div>
+      <canvas id="cost-chart"></canvas>
     </div>
+  </div>
 
-    <p class="pricing-note" id="pricing-note"></p>
-  </main>
+  <div class="panel">
+    <div class="panel-header">
+      Cost Variance — p50 / p95 / p99 per Request
+      <div class="panel-header-right">
+        <span class="tip" data-tip="Per-request cost distribution per endpoint. If p95 is much higher than p50, some requests cost a lot more than typical — usually a missing DB index, N+1 query, or data-shape issue. A ratio above 1.5× triggers a warning." data-tip-dir="down">
+          <i class="tip-icon">i</i>
+        </span>
+        <span class="panel-tag">ratio &gt; 1.5× signals missing index or N+1</span>
+      </div>
+    </div>
+    <div id="stats-container">
+      <div class="empty">
+        <div class="empty-icon">📈</div>
+        <div class="empty-title">No variance data yet</div>
+        <div class="empty-sub">Record traffic to see per-request cost distribution.</div>
+      </div>
+    </div>
+  </div>
 
-  <script>
-    let chart = null;
-    let lastData = null;
+  <p class="pricing-note" id="pricing-note"></p>
+</main>
 
-    async function fetchProjections() {
-      try {
-        const res = await fetch('/api/projections');
-        if (!res.ok) { setStatus('Error ' + res.status); return; }
-        const data = await res.json();
-        lastData = data;
-        render(data);
-        setStatus('Live — refreshes every 5s');
-      } catch (e) {
-        setStatus('Connection error: ' + e.message);
-      }
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let chart = null, lastData = null;
+  let currentCurve = [], currentProj = null, markerIdx = -1;
+
+  // ── Portal tooltip ─────────────────────────────────────────────────────────
+  const portal    = document.getElementById('tip-portal');
+  let hideTimer   = null;
+  let activeAnchor = null;
+
+  function showTip(anchor) {
+    const text = anchor.dataset.tip;
+    if (!text) return;
+    clearTimeout(hideTimer);
+    activeAnchor = anchor;
+
+    portal.textContent = text;
+    portal.className   = '';          // reset direction classes
+    portal.style.display = 'block';
+    // Force reflow so transition triggers
+    portal.getBoundingClientRect();
+
+    const rect = anchor.getBoundingClientRect();
+    const dir  = anchor.dataset.tipDir || 'down';
+    const gap  = 10;
+    const pw   = 240;
+
+    // Horizontal: centre on icon, clamp to viewport edges
+    let left = rect.left + rect.width / 2 - pw / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
+
+    // Portal is position:fixed — use viewport coords only (no scrollY)
+    let top;
+    if (dir === 'up') {
+      const ph = portal.offsetHeight || 80;
+      top = rect.top - ph - gap;
+      portal.classList.add('dir-up');
+    } else {
+      top = rect.bottom + gap;
+      portal.classList.add('dir-down');
     }
 
-    function render(data) {
-      const m = data.meta || {};
-      document.getElementById('meta-bar').textContent =
-        (m.provider || '') + ' · ' + (m.region || '') + ' · ' +
-        (m.targetUsers || 0) + ' target users';
+    // Adjust arrow horizontal position to always point at the icon
+    const arrowLeft = (rect.left + rect.width / 2) - left;
+    portal.style.setProperty('--arrow-left', arrowLeft + 'px');
 
-      const projs = data.projections || [];
-      const summary = data.summary || {};
+    portal.style.left  = left + 'px';
+    portal.style.top   = top  + 'px';
+    portal.style.width = pw   + 'px';
 
-      document.getElementById('total-cost').textContent =
-        '$' + (summary.totalProjectedMonthlyCostUsd || 0).toFixed(2);
-      document.getElementById('endpoint-count').textContent = projs.length;
+    // Use a custom arrow position instead of the centred one
+    // Override the ::before left via inline style trick (CSS var)
+    portal.style.cssText +=
+      `;--arrow-pos:${Math.max(10, Math.min(arrowLeft, pw - 10))}px`;
 
-      const alerts = projs.filter(p => p.exceedsBudget).length;
-      const alertEl = document.getElementById('budget-alerts');
-      alertEl.textContent = alerts;
-      alertEl.className = 'value' + (alerts > 0 ? ' warn' : '');
+    requestAnimationFrame(() => portal.classList.add('visible'));
+  }
 
-      document.getElementById('top-endpoint').textContent =
-        projs.length > 0 ? projs[0].route : '—';
+  function hideTip() {
+    hideTimer = setTimeout(() => {
+      portal.classList.remove('visible');
+      setTimeout(() => { if (!portal.classList.contains('visible')) portal.style.display = 'none'; }, 160);
+      activeAnchor = null;
+    }, 80);
+  }
 
-      renderTable(projs);
-      if (projs.length > 0) renderChart(projs[0]);
+  document.addEventListener('mouseover', e => {
+    const tip = e.target.closest('.tip');
+    if (tip) showTip(tip);
+  });
+  document.addEventListener('mouseout', e => {
+    const tip = e.target.closest('.tip');
+    if (tip) hideTip();
+  });
 
-      const pricingNote = document.getElementById('pricing-note');
-      pricingNote.textContent = 'Pricing: ' + (m.provider || '') +
-        ' on-demand Linux · PricingCatalog ' + (m.pricingDate || '') +
-        ' · Standalone per-endpoint estimates (ADR-009).';
+  // Arrow uses CSS var for position
+  const style = document.createElement('style');
+  style.textContent = `
+    #tip-portal::before { left: var(--arrow-pos, 50%); transform: none; }
+  `;
+  document.head.appendChild(style);
+
+  // ── Toast ──────────────────────────────────────────────────────────────────
+  let toastTimer = null;
+  function showToast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+  }
+
+  // ── Ripple ─────────────────────────────────────────────────────────────────
+  function addRipple(btn, e) {
+    const rect = btn.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height) * 2;
+    const r    = document.createElement('span');
+    r.className = 'ripple';
+    r.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX-rect.left-size/2}px;top:${e.clientY-rect.top-size/2}px`;
+    btn.querySelector('.ripple')?.remove();
+    btn.appendChild(r);
+    r.addEventListener('animationend', () => r.remove());
+  }
+
+  // ── Formatting ─────────────────────────────────────────────────────────────
+  function fmtUsd(v) {
+    if (v == null || isNaN(v)) return '—';
+    if (v >= 1000) return '$' + v.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+    if (v >= 10)   return '$' + v.toFixed(0);
+    return '$' + v.toFixed(2);
+  }
+  function fmtMicro(v) {
+    if (v == null) return '—';
+    const µ = v * 1e6;
+    if (µ >= 1)   return µ.toFixed(1) + ' µ$';
+    if (µ >= 0.1) return µ.toFixed(2) + ' µ$';
+    return '< 0.1 µ$';
+  }
+  function fmtUsers(n) {
+    if (n >= 1e6)  return (n/1e6).toFixed(n%1e6===0?0:1)+'M';
+    if (n >= 1000) return (n/1000).toFixed(n%1000===0?0:1)+'k';
+    return String(n);
+  }
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── Fetch ──────────────────────────────────────────────────────────────────
+  async function fetchProjections() {
+    try {
+      const res = await fetch('/api/projections');
+      if (!res.ok) { setStatus('idle','Error '+res.status); return; }
+      const data = await res.json();
+      lastData = data; render(data);
+      setStatus('live','Live · refreshes every 5s');
+    } catch(e) { setStatus('idle','Connection error'); }
+  }
+
+  function render(data) {
+    const m = data.meta||{}, projs = data.projections||[], sum = data.summary||{};
+    document.getElementById('provider-badge').textContent = [m.provider,m.region].filter(Boolean).join(' · ');
+    document.getElementById('total-cost').textContent    = fmtUsd(sum.totalProjectedMonthlyCostUsd||0);
+    document.getElementById('total-sub').textContent     = 'at '+fmtUsers(m.targetUsers||0)+' concurrent users';
+    document.getElementById('endpoint-count').textContent  = projs.length||'—';
+    document.getElementById('target-users-val').textContent = fmtUsers(m.targetUsers||0);
+    const alerts = projs.filter(p=>p.exceedsBudget).length;
+    const ae = document.getElementById('budget-alerts');
+    ae.textContent = alerts||'0'; ae.className = 'card-value'+(alerts>0?' warn':'');
+    if (projs.length>0) {
+      document.getElementById('top-endpoint').textContent = projs[0].route;
+      document.getElementById('top-cost-sub').textContent = fmtUsd(projs[0].projectedMonthlyCostUsd)+'/mo projected';
+    } else {
+      document.getElementById('top-endpoint').textContent = '—';
+      document.getElementById('top-cost-sub').textContent = '—';
     }
+    renderTable(projs);
+    if (projs.length>0) { currentProj=projs[0]; renderChart(projs[0]); }
+    document.getElementById('pricing-note').textContent =
+      (m.provider||'')+' on-demand Linux · PricingCatalog '+(m.pricingDate||'')+' · Standalone per-endpoint estimates.';
+  }
 
-    function renderTable(projs) {
-      const container = document.getElementById('table-container');
-      if (projs.length === 0) {
-        container.innerHTML = '<div class="empty">No data yet — start recording and make some requests.</div>';
-        return;
-      }
-      let html = '<table><thead><tr>' +
-        '<th>Route</th><th>Obs RPS</th><th>Proj RPS</th>' +
-        '<th>$/month</th><th>$/user</th><th>Avg ms</th><th>CPU ms/req</th><th>Instance</th><th></th>' +
-        '</tr></thead><tbody>';
-      for (const p of projs) {
-        const flag = p.exceedsBudget ? '<span class="budget-warn" title="Exceeds budget">!!</span>' : '';
-        html += '<tr>' +
-          '<td class="route">' + esc(p.route) + '</td>' +
-          '<td>' + (p.observedRps || 0).toFixed(2) + '</td>' +
-          '<td>' + (p.projectedRps || 0).toFixed(1) + '</td>' +
-          '<td>$' + (p.projectedMonthlyCostUsd || 0).toFixed(2) + '</td>' +
-          '<td>$' + (p.projectedCostPerUserUsd || 0).toFixed(4) + '</td>' +
-          '<td>' + (p.medianDurationMs || 0).toFixed(1) + '</td>' +
-          '<td>' + (p.medianCpuMs || 0).toFixed(2) + '</td>' +
-          '<td class="instance">' + esc(p.recommendedInstance || '') + '</td>' +
-          '<td>' + flag + '</td>' +
-          '</tr>';
-      }
-      html += '</tbody></table>';
-      container.innerHTML = html;
+  // ── Table ──────────────────────────────────────────────────────────────────
+  const TH = {
+    route:    'HTTP method + URL template. Path params like /users/123 are normalized to /users/{id} so all requests to the same route are grouped.',
+    monthly:  'Projected monthly cost if this endpoint alone ran at full target load. Based on CPU time, thread wait ratio, and egress bytes measured during recording.',
+    peruser:  'Monthly cost ÷ target users. If you charge $10/user/month, a $0.05/user cost eats 0.5% of revenue per user.',
+    obsrps:   'Observed requests per second during your recording session — your actual measured traffic rate.',
+    projrps:  'Projected requests/sec at target user count, scaled linearly from the observed rate.',
+    avgms:    'Median wall-clock request duration in milliseconds — from first byte in to last byte out.',
+    cpums:    'Median CPU time consumed per request. This is what costs money — wall time includes cheap I/O wait.',
+    instance: 'Smallest instance that could handle this endpoint at projected load. In containers, focus on vCPU allocation instead.',
+  };
+
+  function thTip(key, label) {
+    return '<th><span style="display:inline-flex;align-items:center;gap:4px">'
+      + label
+      + '<span class="tip" data-tip="'+esc(TH[key])+'" data-tip-dir="down"><i class="tip-icon">i</i></span>'
+      + '</span></th>';
+  }
+
+  function renderTable(projs) {
+    const el = document.getElementById('table-container');
+    if (!projs.length) {
+      el.innerHTML = '<div class="empty"><div class="empty-icon">📊</div><div class="empty-title">No data yet</div><div class="empty-sub">Start recording and make some requests.</div></div>';
+      return;
     }
+    let h = '<table><thead><tr>'
+      + thTip('route','Route') + thTip('monthly','$/month') + thTip('peruser','$/user')
+      + thTip('obsrps','Obs RPS') + thTip('projrps','Proj RPS') + thTip('avgms','Avg ms')
+      + thTip('cpums','CPU ms/req') + thTip('instance','Instance') + '<th></th>'
+      + '</tr></thead><tbody>';
+    for (const p of projs) {
+      const flag = p.exceedsBudget ? '<span class="budget-flag">⚠ over budget</span>' : '';
+      h += '<tr>'
+        + '<td class="col-route">'    + esc(p.route) + '</td>'
+        + '<td class="col-cost">'     + fmtUsd(p.projectedMonthlyCostUsd) + '</td>'
+        + '<td class="col-num">$'     + (p.projectedCostPerUserUsd||0).toFixed(4) + '</td>'
+        + '<td class="col-num">'      + (p.observedRps||0).toFixed(2) + '</td>'
+        + '<td class="col-num">'      + (p.projectedRps||0).toFixed(0) + '</td>'
+        + '<td class="col-num">'      + (p.medianDurationMs||0).toFixed(1) + '</td>'
+        + '<td class="col-num">'      + (p.medianCpuMs||0).toFixed(1) + '</td>'
+        + '<td class="col-instance">' + esc(p.recommendedInstance||'') + '</td>'
+        + '<td>' + flag + '</td></tr>';
+    }
+    h += '</tbody></table>';
+    el.innerHTML = h;
+  }
 
-    function renderChart(proj) {
-      const curve = proj.costCurve || [];
-      const labels = curve.map(p => p.users >= 1000 ? (p.users/1000)+'k' : p.users);
-      const values = curve.map(p => p.monthlyCostUsd);
+  // ── Chart ──────────────────────────────────────────────────────────────────
+  const markerPlugin = {
+    id: 'marker',
+    afterDraw(c) {
+      if (markerIdx<0||markerIdx>=currentCurve.length) return;
+      const meta = c.getDatasetMeta(0);
+      if (!meta?.data[markerIdx]) return;
+      const x=meta.data[markerIdx].x, ctx=c.ctx;
+      ctx.save();
+      ctx.beginPath(); ctx.moveTo(x,c.chartArea.top); ctx.lineTo(x,c.chartArea.bottom);
+      ctx.lineWidth=2; ctx.strokeStyle='#FF385C'; ctx.setLineDash([4,3]); ctx.stroke();
+      ctx.restore();
+    }
+  };
 
-      if (chart) {
-        chart.data.labels = labels;
-        chart.data.datasets[0].data = values;
-        chart.data.datasets[0].label = proj.route;
-        chart.update();
-      } else {
-        const ctx = document.getElementById('cost-chart').getContext('2d');
-        chart = new Chart(ctx, {
-          type: 'line',
-          data: {
-            labels,
-            datasets: [{
-              label: proj.route,
-              data: values,
-              borderColor: '#63b3ed',
-              backgroundColor: 'rgba(99,179,237,0.12)',
-              fill: true,
-              tension: 0.3,
-              pointRadius: 4
-            }]
+  function renderChart(proj) {
+    currentCurve = proj.costCurve||[];
+    document.getElementById('chart-title').textContent = 'Cost Curve Explorer — '+proj.route;
+    const labels = currentCurve.map(p=>fmtUsers(p.users));
+    const values = currentCurve.map(p=>p.monthlyCostUsd);
+    const slider = document.getElementById('user-slider');
+    slider.max   = Math.max(0,currentCurve.length-1);
+    if (markerIdx<0 && lastData?.meta) {
+      const tu=lastData.meta.targetUsers||0; let best=0;
+      currentCurve.forEach((p,i)=>{ if(p.users<=tu) best=i; });
+      markerIdx=best; slider.value=best;
+    }
+    updateSliderReadout();
+    if (chart) {
+      chart.data.labels=labels; chart.data.datasets[0].data=values; chart.data.datasets[0].label=proj.route;
+      chart.update();
+    } else {
+      Chart.register(markerPlugin);
+      chart = new Chart(document.getElementById('cost-chart').getContext('2d'), {
+        type:'line',
+        data:{ labels, datasets:[{
+          label:proj.route, data:values,
+          borderColor:'#FF385C', backgroundColor:'rgba(255,56,92,0.06)',
+          fill:true, tension:0.35, pointRadius:4,
+          pointBackgroundColor:'#FF385C', pointBorderColor:'#FFFFFF', pointBorderWidth:2,
+          pointHoverRadius:6,
+        }]},
+        options:{
+          responsive:true, animation:{duration:300},
+          interaction:{mode:'index',intersect:false},
+          scales:{
+            x:{ title:{display:true,text:'Concurrent Users',color:'#BBBBBB',font:{size:11}},
+                ticks:{color:'#BBBBBB',font:{size:11}}, grid:{color:'#F2F2F2'} },
+            y:{ title:{display:true,text:'$/month',color:'#BBBBBB',font:{size:11}},
+                ticks:{color:'#BBBBBB',font:{size:11},callback:v=>v>=1000?'$'+(v/1000).toFixed(0)+'k':'$'+v.toFixed(0)},
+                grid:{color:'#F2F2F2'} }
           },
-          options: {
-            responsive: true,
-            scales: {
-              x: { title: { display: true, text: 'Concurrent Users', color: '#718096' },
-                   ticks: { color: '#718096' }, grid: { color: '#2d3748' } },
-              y: { title: { display: true, text: '$/month', color: '#718096' },
-                   ticks: { color: '#718096', callback: v => '$' + v.toFixed(0) },
-                   grid: { color: '#2d3748' } }
-            },
-            plugins: { legend: { labels: { color: '#a0aec0' } } }
+          plugins:{
+            legend:{display:false},
+            tooltip:{
+              backgroundColor:'#1A1A1A', titleColor:'#FFFFFF', bodyColor:'#BBBBBB',
+              cornerRadius:8, padding:10,
+              callbacks:{
+                title:items=>fmtUsers(currentCurve[items[0].dataIndex]?.users||0)+' concurrent users',
+                label:item=>'  '+fmtUsd(item.raw)+' / month'
+              }
+            }
           }
-        });
-      }
+        }
+      });
     }
+  }
 
-    function setStatus(msg) {
-      document.getElementById('status').textContent = msg;
+  // ── Slider ─────────────────────────────────────────────────────────────────
+  function onSlider() {
+    markerIdx = parseInt(document.getElementById('user-slider').value,10);
+    updateSliderReadout(); chart?.update();
+  }
+  function updateSliderReadout() {
+    const el = document.getElementById('slider-readout');
+    const lb = document.getElementById('slider-users-label');
+    if (!currentCurve.length||markerIdx<0) { el.style.display='none'; lb.textContent='—'; return; }
+    const pt = currentCurve[Math.min(markerIdx,currentCurve.length-1)];
+    if (!pt) return;
+    lb.textContent = fmtUsers(pt.users);
+    document.getElementById('ro-users').textContent    = fmtUsers(pt.users)+' concurrent users';
+    document.getElementById('ro-cost').textContent     = fmtUsd(pt.monthlyCostUsd);
+    document.getElementById('ro-instance').textContent = currentProj?.recommendedInstance||'';
+    el.style.display = 'flex';
+  }
+
+  // ── Stats ──────────────────────────────────────────────────────────────────
+  async function fetchStats() {
+    try {
+      const res = await fetch('/api/stats');
+      if (!res.ok) return;
+      const data = await res.json();
+      renderStats(data.stats||[]);
+    } catch(e) {}
+  }
+
+  const VAR = {
+    p50:   'Median cost per request. Half of all requests cost less than this. Shown in microdollars (µ$) — 1 µ$ = $0.000001.',
+    p95:   '95th percentile cost. 95% of requests are cheaper than this. High p95 vs p50 means a subset of requests are disproportionately expensive.',
+    p99:   '99th percentile. Only 1 in 100 requests exceeds this cost — useful for spotting worst-case outliers.',
+    ratio: 'p95 ÷ p50. Above 1.5× means some requests cost much more than the median — usually a missing DB index, N+1 query, or cache miss on specific data shapes.',
+  };
+  function statTh(key, label) {
+    return '<th><span style="display:inline-flex;align-items:center;gap:4px">'
+      + label
+      + '<span class="tip" data-tip="'+esc(VAR[key])+'" data-tip-dir="down"><i class="tip-icon">i</i></span>'
+      + '</span></th>';
+  }
+
+  function renderStats(stats) {
+    const el = document.getElementById('stats-container');
+    if (!stats.length) {
+      el.innerHTML='<div class="empty"><div class="empty-icon">📈</div><div class="empty-title">No variance data yet</div><div class="empty-sub">Record traffic to see per-request cost distribution.</div></div>';
+      return;
     }
-
-    async function startRecording() {
-      await fetch('/api/recording/start', { method: 'POST' });
-      setStatus('Recording started');
-      refreshAll();
+    let h = '<table><thead><tr><th>Route</th><th>Requests</th>'
+      + statTh('p50','p50 cost/req') + statTh('p95','p95 cost/req')
+      + statTh('p99','p99 cost/req') + statTh('ratio','p95/p50')
+      + '<th></th></tr></thead><tbody>';
+    for (const s of stats) {
+      const ratio = s.varianceRatio!=null ? s.varianceRatio.toFixed(2)+'×' : '—';
+      const cls   = s.varianceWarning ? 'variance-warn' : 'variance-ok';
+      const badge = s.varianceWarning
+        ? '<span class="variance-badge warn">⚠ high variance</span>'
+        : '<span class="variance-badge ok">✓ stable</span>';
+      h += '<tr>'
+        + '<td class="col-route">'  + esc(s.route)+'</td>'
+        + '<td class="col-num">'    + s.requests+'</td>'
+        + '<td class="col-num">'    + fmtMicro(s.p50CostUsd)+'</td>'
+        + '<td class="col-num">'    + fmtMicro(s.p95CostUsd)+'</td>'
+        + '<td class="col-num">'    + fmtMicro(s.p99CostUsd)+'</td>'
+        + '<td class="'+cls+'" style="font-weight:600">'+ratio+'</td>'
+        + '<td>'+badge+'</td></tr>';
     }
+    h += '</tbody></table>';
+    el.innerHTML = h;
+  }
 
-    async function stopRecording() {
-      await fetch('/api/recording/stop', { method: 'POST' });
-      setStatus('Recording stopped');
-      refreshAll();
-    }
+  // ── Recording ──────────────────────────────────────────────────────────────
+  async function startRecording(e) {
+    addRipple(e.currentTarget,e);
+    await fetch('/api/recording/start',{method:'POST'});
+    setStatus('recording','Recording…'); showToast('Recording started'); refreshAll();
+  }
+  async function stopRecording(e) {
+    addRipple(e.currentTarget,e);
+    await fetch('/api/recording/stop',{method:'POST'});
+    setStatus('live','Stopped'); showToast('Recording stopped'); refreshAll();
+  }
+  function setStatus(mode, msg) {
+    document.getElementById('status-text').textContent = msg;
+    document.getElementById('status-dot').className =
+      'status-dot'+(mode==='recording'?' recording':mode==='live'?' live':'');
+  }
 
-    function esc(s) {
-      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    }
-
-    async function fetchStats() {
-      try {
-        const res = await fetch('/api/stats');
-        if (!res.ok) return;
-        const data = await res.json();
-        renderStats(data.stats || []);
-      } catch (e) { /* silent — stats are supplementary */ }
-    }
-
-    function renderStats(stats) {
-      const container = document.getElementById('stats-container');
-      if (stats.length === 0) {
-        container.innerHTML = '<div class="empty">No data yet — start recording and make some requests.</div>';
-        return;
-      }
-      let html = '<table><thead><tr>' +
-        '<th>Route</th><th>Requests</th>' +
-        '<th>p50 $/req</th><th>p95 $/req</th><th>p99 $/req</th>' +
-        '<th>p95/p50</th><th></th>' +
-        '</tr></thead><tbody>';
-      for (const s of stats) {
-        const warn = s.varianceWarning
-          ? '<span class="budget-warn" title="High variance — some requests cost 1.5× or more than median. Possible missing index or N+1 query.">⚠</span>'
-          : '';
-        const ratio = s.varianceRatio != null ? s.varianceRatio.toFixed(2) + 'x' : '—';
-        html += '<tr>' +
-          '<td class="route">' + esc(s.route) + '</td>' +
-          '<td>' + s.requests + '</td>' +
-          '<td>$' + (s.p50CostUsd || 0).toFixed(6) + '</td>' +
-          '<td>$' + (s.p95CostUsd || 0).toFixed(6) + '</td>' +
-          '<td>$' + (s.p99CostUsd || 0).toFixed(6) + '</td>' +
-          '<td>' + ratio + '</td>' +
-          '<td>' + warn + '</td>' +
-          '</tr>';
-      }
-      html += '</tbody></table>';
-      container.innerHTML = html;
-    }
-
-    function refreshAll() {
-      fetchProjections();
-      fetchStats();
-    }
-
-    refreshAll();
-    setInterval(refreshAll, 5000);
-  </script>
+  function refreshAll() { fetchProjections(); fetchStats(); }
+  refreshAll();
+  setInterval(refreshAll, 5000);
+</script>
 </body>
 </html>
