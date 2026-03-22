@@ -160,7 +160,11 @@ public final class LivePricingFetcher {
                     && hourly != null && hourly > 0 && Double.isFinite(hourly)) {
                 try {
                     CloudProvider cp = CloudProvider.valueOf(provider.toUpperCase());
-                    out.get(cp).add(new InstanceType(name, cp, vcpus, memory, hourly));
+                    // Clamp to a sane pricing range so downstream arithmetic is bounded.
+                    // Realistic on-demand prices: $0.001–$100/hour; memory: 0.5–10000 GB.
+                    double safeHourly = Math.min(Math.max(hourly, 0.001), 100.0);
+                    double safeMemory = Math.min(Math.max(memory, 0.5), 10_000.0);
+                    out.get(cp).add(new InstanceType(name, cp, vcpus, safeMemory, safeHourly));
                 } catch (IllegalArgumentException ignored) {
                     // Unknown provider — skip
                 }
