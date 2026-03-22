@@ -1,0 +1,27 @@
+plugins {
+    id 'java'
+    id 'jacoco'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
+description = 'CloudMeter sidecar — standalone metric ingest server for Python/Node.js apps'
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+dependencies {
+    implementation project(':collector')
+    implementation project(':cost-engine')
+    implementation project(':reporter')
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+shadowJar {
+    archiveBaseName = 'cloudmeter-sidecar'
+    archiveClassifier = ''
+    manifest { attributes 'Main-Class': 'io.cloudmeter.sidecar.SidecarMain' }
+    mergeServiceFiles()
+    relocate 'net.bytebuddy', 'io.cloudmeter.shaded.bytebuddy'
+}
+jacocoTestCoverageVerification {
+    violationRules { rule { limit { minimum = 0.75 } } }
+}

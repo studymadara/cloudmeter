@@ -11,6 +11,9 @@ include 'spring-boot-starter'
 // Pipeline integration tests (JUnit, no agent instrumentation)
 include 'integration-test'
 
+// Sidecar — standalone metric ingest server for Python/Node.js apps
+include 'sidecar'
+
 // Sample apps used for local manual testing and the CI e2e job.
 // Grouped under test-apps/ so they don't pollute the root module list.
 include 'test-apps:spring3'
