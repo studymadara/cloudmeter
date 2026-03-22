@@ -23,5 +23,12 @@ shadowJar {
     relocate 'net.bytebuddy', 'io.cloudmeter.shaded.bytebuddy'
 }
 jacocoTestCoverageVerification {
-    violationRules { rule { limit { minimum = 0.75 } } }
+    // Exclude SidecarMain — it is an entry-point (main()) and not unit-testable.
+    // All other classes are exercised directly.
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: ['**/SidecarMain.class'])
+        }))
+    }
+    violationRules { rule { limit { minimum = 0.88 } } }
 }

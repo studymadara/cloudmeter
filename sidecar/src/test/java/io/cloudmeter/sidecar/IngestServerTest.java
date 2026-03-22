@@ -105,6 +105,12 @@ class IngestServerTest {
         assertTrue(body.contains("\"totalMetrics\":1"), "body=" + body);
     }
 
+    @Test
+    void postToStatusEndpointReturns405() throws Exception {
+        int code = postJson("/api/status", "{}");
+        assertEquals(405, code);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private int postJson(String path, String json) throws Exception {

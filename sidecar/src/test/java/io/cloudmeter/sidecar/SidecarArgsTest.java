@@ -74,4 +74,30 @@ class SidecarArgsTest {
         assertThrows(IllegalArgumentException.class,
                 () -> SidecarArgs.parse(new String[]{"--unknown-flag", "value"}));
     }
+
+    @Test
+    void nonFlagArgumentThrows() {
+        // Args not starting with "--" should throw
+        assertThrows(IllegalArgumentException.class,
+                () -> SidecarArgs.parse(new String[]{"AWS"}));
+    }
+
+    @Test
+    void missingValueForFlagThrows() {
+        // "--region" with no following value
+        assertThrows(IllegalArgumentException.class,
+                () -> SidecarArgs.parse(new String[]{"--region"}));
+    }
+
+    @Test
+    void budgetUsdSet() {
+        SidecarArgs args = SidecarArgs.parse(new String[]{"--budget-usd", "500.0"});
+        assertEquals(500.0, args.getBudgetUsd(), 0.0001);
+    }
+
+    @Test
+    void requestsPerUserPerSecondSet() {
+        SidecarArgs args = SidecarArgs.parse(new String[]{"--requests-per-user-per-second", "2.5"});
+        assertEquals(2.5, args.getRequestsPerUserPerSecond(), 0.0001);
+    }
 }
