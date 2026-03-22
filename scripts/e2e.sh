@@ -18,6 +18,7 @@ SMOKE_JAR="test-apps/spring3/build/libs/smoke-app.jar"
 APP_PORT=8080
 DASHBOARD_PORT=7777
 STARTUP_TIMEOUT=30   # seconds to wait for the app to come up
+WARMUP_SECONDS=32    # agent excludes first 30s of metrics; wait for warmup to clear
 APP_PID=""
 
 # ── Cleanup ────────────────────────────────────────────────────────────────────
@@ -75,8 +76,12 @@ if ! curl -sf "http://localhost:$APP_PORT/api/health" -o /dev/null 2>/dev/null; 
     exit 1
 fi
 
+# ── Wait for agent warmup window to expire ────────────────────────────────────
+echo "[e2e] Waiting ${WARMUP_SECONDS}s for agent warmup window to clear..."
+sleep "$WARMUP_SECONDS"
+
 # ── Exercise endpoints ─────────────────────────────────────────────────────────
-echo "[e2e] Warming up endpoints (30 requests per route)..."
+echo "[e2e] Hitting endpoints (30 requests per route)..."
 
 for i in $(seq 1 30); do
     curl -sf "http://localhost:$APP_PORT/api/health"        -o /dev/null
