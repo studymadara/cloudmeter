@@ -4,14 +4,27 @@
   "description": "Per-endpoint cloud cost monitoring for Node.js web apps",
   "main": "src/index.js",
   "license": "Apache-2.0",
-  "engines": { "node": ">=16" },
-  "keywords": ["cloud", "cost", "monitoring", "express", "fastify", "devtools"],
-  "repository": { "type": "git", "url": "https://github.com/your-org/cloudmeter" },
-  "files": ["src/"],
-  "dependencies": {},
+  "engines": {
+    "node": ">=16"
+  },
+  "keywords": [
+    "cloud",
+    "cost",
+    "monitoring",
+    "express",
+    "fastify",
+    "devtools"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/studymadara/cloudmeter"
+  },
+  "files": [
+    "src/"
+  ],
   "devDependencies": {
-    "express": "^4.18.0",
-    "fastify": "^4.0.0"
+    "express": "^4.22.1",
+    "fastify": "^4.29.1"
   },
   "scripts": {
     "test": "node --test src/__tests__/*.test.js"

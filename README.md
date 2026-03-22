@@ -245,6 +245,16 @@ cloudmeter/
 │
 ├── cli/               CloudMeterCli, ReportCommand, CliArgs
 │
+├── sidecar-rs/        Rust sidecar binary (~1.4 MB) for Python/Node.js apps
+│                      axum HTTP server · dual-port (ingest :7778, dashboard :7777)
+│                      Cross-compiled for Linux/macOS/Windows via GitHub Actions
+│
+├── clients/
+│   ├── python/        pip install cloudmeter — Flask, FastAPI, Django middleware
+│   │                  Auto-downloads sidecar binary · fire-and-forget reporter
+│   └── node/          npm install cloudmeter — Express, Fastify middleware
+│                      Auto-downloads sidecar binary · fire-and-forget reporter
+│
 ├── integration-test/  Full pipeline JUnit tests (MetricsStore → reporters → CLI exit codes)
 │
 ├── test-apps/         Sample apps for local and CI e2e testing
@@ -254,10 +264,65 @@ cloudmeter/
 │   └── jaxrs/         JAX-RS / Jersey / embedded Tomcat
 │
 ├── pricing/           cloudmeter-prices.json — fetched at runtime with fetchPrices=true
-└── scripts/           e2e.sh, measure-overhead.sh
+└── scripts/           e2e.sh, smoke-rust.sh, smoke-python.sh, smoke-node.sh, measure-overhead.sh
 ```
 
 Architecture decisions and full system design: [`arc42.md`](arc42.md)
+
+---
+
+## Python and Node.js support
+
+CloudMeter also works for Python (Flask, FastAPI, Django) and Node.js (Express, Fastify) apps via a lightweight native sidecar and a one-line middleware.
+
+### Install
+
+```bash
+# Python
+pip install cloudmeter
+
+# Node.js
+npm install cloudmeter
+```
+
+The sidecar binary (~1.4 MB, no runtime required) is downloaded automatically on first use.
+
+### Flask
+```python
+from cloudmeter.flask import CloudMeterFlask
+app = Flask(__name__)
+CloudMeterFlask(app, provider="AWS", target_users=1000)
+```
+
+### FastAPI
+```python
+from cloudmeter.fastapi import CloudMeterMiddleware
+app.add_middleware(CloudMeterMiddleware, provider="AWS", target_users=1000)
+```
+
+### Django — `settings.py`
+```python
+MIDDLEWARE = ['cloudmeter.django.CloudMeterMiddleware', ...]
+CLOUDMETER  = {"provider": "AWS", "target_users": 1000}
+```
+
+### Express
+```js
+const { cloudMeter } = require('cloudmeter')
+app.use(cloudMeter({ provider: 'AWS', targetUsers: 1000 }))
+```
+
+### Fastify
+```js
+const { cloudMeterPlugin } = require('cloudmeter')
+await fastify.register(cloudMeterPlugin, { provider: 'AWS', targetUsers: 1000 })
+```
+
+Open **http://localhost:7777** — same dashboard, same cost curves.
+
+> **CPU accuracy note:** Python and Node.js cannot attribute per-request CPU time (GIL / single event loop). Wall-clock duration is used as proxy — cost accuracy is ±40% vs the Java agent's ±20%. Egress and instance selection are not affected.
+
+See [`clients/python/README.md`](clients/python/README.md) and [`clients/node/README.md`](clients/node/README.md) for full documentation.
 
 ---
 
@@ -367,7 +432,7 @@ Good first areas:
 - Regional pricing multipliers (cost-engine)
 - Additional framework support (Micronaut, Quarkus)
 - Dashboard improvements
-- Language agents (Node.js, Python) following the same wire protocol
+- FastAPI async middleware (current version uses Starlette BaseHTTPMiddleware)
 
 Read [`arc42.md`](arc42.md) before contributing — it explains every architectural decision and why it was made. Read [`CONTRIBUTING.md`](CONTRIBUTING.md) for the branching model and PR process.
 

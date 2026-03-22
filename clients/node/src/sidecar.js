@@ -13,7 +13,7 @@ const http  = require('http')
 const os    = require('os')
 const path  = require('path')
 
-const GITHUB_REPO = process.env.CLOUDMETER_REPO || 'your-org/cloudmeter'
+const GITHUB_REPO = process.env.CLOUDMETER_REPO || 'studymadara/cloudmeter'
 
 function installDir() {
   return path.join(os.homedir(), '.cloudmeter', 'bin')

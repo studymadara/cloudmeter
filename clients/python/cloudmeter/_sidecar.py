@@ -17,7 +17,7 @@ import urllib.request
 from pathlib import Path
 from threading import Lock
 
-GITHUB_REPO = os.environ.get("CLOUDMETER_REPO", "your-org/cloudmeter")
+GITHUB_REPO = os.environ.get("CLOUDMETER_REPO", "studymadara/cloudmeter")
 
 _lock = Lock()
 _process: "subprocess.Popen | None" = None

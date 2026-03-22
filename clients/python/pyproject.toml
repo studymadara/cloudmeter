@@ -18,8 +18,8 @@ fastapi = ["starlette>=0.20"]
 django  = ["django>=3.2"]
 
 [project.urls]
-Homepage   = "https://github.com/your-org/cloudmeter"
-Repository = "https://github.com/your-org/cloudmeter"
+Homepage   = "https://github.com/studymadara/cloudmeter"
+Repository = "https://github.com/studymadara/cloudmeter"
 
 [tool.setuptools.packages.find]
 where = ["."]

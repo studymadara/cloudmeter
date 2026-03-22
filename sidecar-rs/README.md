@@ -260,7 +260,7 @@ app.use((req, res, next) => {
 **Prerequisites:** Rust 1.75+ (`rustup` or `curl https://sh.rustup.rs | sh`)
 
 ```bash
-git clone https://github.com/your-org/cloudmeter
+git clone https://github.com/studymadara/cloudmeter
 cd cloudmeter/sidecar-rs
 
 # Debug build (fast)

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # CloudMeter sidecar — one-line installer
 #
-#   curl -fsSL https://raw.githubusercontent.com/your-org/cloudmeter/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/studymadara/cloudmeter/main/install.sh | bash
 #
 # What this does:
 #   1. Detects your OS and CPU architecture
@@ -16,7 +16,7 @@
 
 set -euo pipefail
 
-REPO="your-org/cloudmeter"
+REPO="studymadara/cloudmeter"
 INSTALL_DIR="${HOME}/.local/bin"
 BINARY_NAME="cloudmeter-sidecar"
 
