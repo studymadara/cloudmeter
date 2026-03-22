@@ -1,18 +1,11 @@
-mod config;
-mod model;
-mod store;
-mod pricing;
-mod projector;
-mod server;
-
 use clap::Parser;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 
-use config::Config;
-use server::AppState;
-use store::MetricsStore;
+use cloudmeter_sidecar::config::Config;
+use cloudmeter_sidecar::server::{self, AppState};
+use cloudmeter_sidecar::store::{self, MetricsStore};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

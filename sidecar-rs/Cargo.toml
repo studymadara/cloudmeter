@@ -5,6 +5,10 @@ edition = "2021"
 description = "CloudMeter sidecar — native cost monitoring for Python/Node.js apps"
 license = "Apache-2.0"
 
+[lib]
+name = "cloudmeter_sidecar"
+path = "src/lib.rs"
+
 [[bin]]
 name = "cloudmeter-sidecar"
 path = "src/main.rs"
