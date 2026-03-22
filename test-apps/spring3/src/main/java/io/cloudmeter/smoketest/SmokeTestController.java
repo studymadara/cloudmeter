@@ -106,6 +106,22 @@ public class SmokeTestController {
     }
 
     /**
+     * GET /api/reports/{year}/{month} — custom multi-segment path template.
+     * Verifies CloudMeter normalises nested path variables correctly so that
+     * /api/reports/2024/01 and /api/reports/2025/12 map to the same route key.
+     */
+    @GetMapping("/reports/{year}/{month}")
+    public Map<String, Object> report(@PathVariable String year, @PathVariable String month) {
+        long result = cpuWork(3_000_000); // medium CPU — should show distinct cost from /users/{id}
+        Map<String, Object> response = new HashMap<>();
+        response.put("year", year);
+        response.put("month", month);
+        response.put("reportRows", 842);
+        response.put("checksum", result);
+        return response;
+    }
+
+    /**
      * Burns CPU for approximately {@code iterations} tight-loop iterations.
      * Returns the final accumulator so the JIT cannot eliminate the loop.
      */
