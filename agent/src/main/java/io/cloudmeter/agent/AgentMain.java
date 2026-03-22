@@ -85,15 +85,15 @@ public final class AgentMain {
             try (java.util.jar.JarOutputStream jos =
                     new java.util.jar.JarOutputStream(new java.io.FileOutputStream(tmpFile))) {
                 for (String resource : resources) {
-                    try (java.io.InputStream is =
-                            ClassLoader.getSystemClassLoader().getResourceAsStream(resource)) {
-                        if (is == null) continue;
-                        jos.putNextEntry(new java.util.jar.JarEntry(resource));
-                        byte[] buf = new byte[4096];
-                        int n;
-                        while ((n = is.read(buf)) >= 0) jos.write(buf, 0, n);
-                        jos.closeEntry();
-                    }
+                    java.io.InputStream is =
+                        ClassLoader.getSystemClassLoader().getResourceAsStream(resource);
+                    if (is == null) continue;
+                    jos.putNextEntry(new java.util.jar.JarEntry(resource));
+                    byte[] buf = new byte[4096];
+                    int n;
+                    while ((n = is.read(buf)) >= 0) jos.write(buf, 0, n);
+                    jos.closeEntry();
+                    is.close();
                 }
             }
             inst.appendToBootstrapClassLoaderSearch(new java.util.jar.JarFile(tmpFile));
