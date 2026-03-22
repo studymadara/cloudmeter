@@ -78,6 +78,16 @@ class WarmupCostSummaryTest {
     }
 
     @Test
+    void getTotalDurationMs_returnsAccumulatedValue() {
+        List<RequestMetrics> all = Arrays.asList(
+                metric(true, 0.01, 100),
+                metric(true, 0.01, 100));
+        WarmupCostSummary summary = CostProjector.computeWarmupSummary(all, config());
+        // Each metric has durationMs=50; two warmup entries → 100
+        assertEquals(100L, summary.getTotalDurationMs());
+    }
+
+    @Test
     void hasData_falseWhenEmpty() {
         WarmupCostSummary empty = new WarmupCostSummary(0, 0.0, 0L, 0L, 0.0);
         assertFalse(empty.hasData());
