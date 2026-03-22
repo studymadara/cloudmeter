@@ -1,0 +1,48 @@
+name: Release Smoke Test
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  smoke:
+    name: Verify released artifact
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Download released agent JAR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG=${{ github.event.release.tag_name }}
+          mkdir -p /tmp/released
+          gh release download "$TAG" --pattern "cloudmeter-agent-*.jar" --dir /tmp/released
+          echo "AGENT_JAR=$(ls /tmp/released/cloudmeter-agent-*.jar)" >> $GITHUB_ENV
+          echo "Using released JAR: $(ls /tmp/released/)"
+
+      - name: Build smoke app
+        run: ./gradlew :test-apps:spring3:bootJar
+
+      - name: Run e2e smoke test against released JAR
+        run: bash scripts/e2e.sh
+
+      - name: Upload app log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-smoke-log
+          path: /tmp/cloudmeter-e2e-app.log
+          retention-days: 3

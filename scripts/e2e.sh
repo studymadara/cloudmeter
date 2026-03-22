@@ -13,7 +13,7 @@
 
 set -euo pipefail
 
-AGENT_JAR=$(ls agent/build/libs/agent-*.jar 2>/dev/null | head -1)
+AGENT_JAR="${AGENT_JAR:-$(ls agent/build/libs/agent-*.jar 2>/dev/null | head -1)}"
 SMOKE_JAR="test-apps/spring3/build/libs/smoke-app.jar"
 APP_PORT=8080
 DASHBOARD_PORT=7777
