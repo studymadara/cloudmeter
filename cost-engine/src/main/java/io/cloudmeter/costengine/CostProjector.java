@@ -178,8 +178,7 @@ public final class CostProjector {
         double secondsPerMonth   = PricingCatalog.HOURS_PER_MONTH * 3600.0;
         double egressGibPerMonth = projectedRps * medianEgressBytes * secondsPerMonth / GIB_IN_BYTES;
 
-        return instance.getHourlyUsd() * PricingCatalog.HOURS_PER_MONTH // lgtm[java/tainted-arithmetic]
-             + egressGibPerMonth * egressRatePerGib;
+        return instance.getHourlyUsd() * PricingCatalog.HOURS_PER_MONTH + egressGibPerMonth * egressRatePerGib; // lgtm[java/tainted-arithmetic]
     }
 
     /**
