@@ -4,6 +4,7 @@ import io.cloudmeter.costengine.EndpointCostProjection;
 import io.cloudmeter.costengine.PricingCatalog;
 import io.cloudmeter.costengine.ProjectionConfig;
 import io.cloudmeter.costengine.ScalePoint;
+import io.cloudmeter.costengine.WarmupCostSummary;
 
 import java.io.PrintStream;
 import java.util.List;
@@ -66,7 +67,66 @@ public final class JsonReporter {
         return anyExceeds;
     }
 
+    /**
+     * Writes the JSON report including a warmup cold-start summary.
+     *
+     * @return {@code true} if any endpoint projection exceeds the budget threshold
+     */
+    public static boolean print(List<EndpointCostProjection> projections,
+                                WarmupCostSummary warmup,
+                                ProjectionConfig config, PrintStream out) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("{\n");
+        sb.append("  \"meta\": {\n");
+        sb.append("    \"provider\": ").append(quote(config.getProvider().name())).append(",\n");
+        sb.append("    \"region\": ").append(quote(config.getRegion())).append(",\n");
+        sb.append("    \"targetUsers\": ").append(config.getTargetUsers()).append(",\n");
+        sb.append("    \"requestsPerUserPerSecond\": ").append(config.getRequestsPerUserPerSecond()).append(",\n");
+        sb.append("    \"budgetUsd\": ").append(config.getBudgetUsd()).append(",\n");
+        sb.append("    \"pricingDate\": ").append(quote(PricingCatalog.getPricingDate())).append(",\n");
+        sb.append("    \"pricingSource\": ").append(quote(PricingCatalog.isLive() ? "live" : "static")).append("\n");
+        sb.append("  },\n");
+
+        sb.append("  \"projections\": [\n");
+        boolean anyExceeds = false;
+        for (int i = 0; i < projections.size(); i++) {
+            EndpointCostProjection p = projections.get(i);
+            if (p.isExceedsBudget()) anyExceeds = true;
+            appendProjection(sb, p);
+            if (i < projections.size() - 1) sb.append(",");
+            sb.append("\n");
+        }
+        sb.append("  ],\n");
+
+        appendWarmupSummary(sb, warmup);
+
+        double totalMonthly = 0.0;
+        for (EndpointCostProjection p : projections) {
+            totalMonthly += p.getProjectedMonthlyCostUsd();
+        }
+        sb.append("  \"summary\": {\n");
+        sb.append("    \"totalProjectedMonthlyCostUsd\": ").append(round2(totalMonthly)).append(",\n");
+        sb.append("    \"anyExceedsBudget\": ").append(anyExceeds).append("\n");
+        sb.append("  }\n");
+        sb.append("}\n");
+
+        out.print(sb);
+        return anyExceeds;
+    }
+
     // ── Private helpers ───────────────────────────────────────────────────────
+
+    private static void appendWarmupSummary(StringBuilder sb, WarmupCostSummary w) {
+        sb.append("  \"warmupSummary\": {\n");
+        sb.append("    \"hasData\": ").append(w.hasData()).append(",\n");
+        sb.append("    \"requestCount\": ").append(w.getRequestCount()).append(",\n");
+        sb.append("    \"warmupWindowSeconds\": ").append(WarmupCostSummary.WARMUP_SECONDS).append(",\n");
+        sb.append("    \"totalCpuCoreSeconds\": ").append(round4(w.getTotalCpuCoreSeconds())).append(",\n");
+        sb.append("    \"totalEgressBytes\": ").append(w.getTotalEgressBytes()).append(",\n");
+        sb.append("    \"estimatedColdStartCostUsd\": ").append(round6(w.getEstimatedColdStartCostUsd())).append(",\n");
+        sb.append("    \"note\": \"Cost per JVM restart. Multiply by (restarts/month x pods) for monthly cold-start tax.\"\n");
+        sb.append("  },\n");
+    }
 
     private static void appendProjection(StringBuilder sb, EndpointCostProjection p) {
         sb.append("    {\n");

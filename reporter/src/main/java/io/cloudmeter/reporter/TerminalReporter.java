@@ -2,6 +2,7 @@ package io.cloudmeter.reporter;
 
 import io.cloudmeter.costengine.EndpointCostProjection;
 import io.cloudmeter.costengine.ProjectionConfig;
+import io.cloudmeter.costengine.WarmupCostSummary;
 
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -112,6 +113,25 @@ public final class TerminalReporter {
                 + " on-demand Linux (PricingCatalog " + io.cloudmeter.costengine.PricingCatalog.PRICING_DATE + ")");
         out.println("  Note: costs are standalone per-endpoint estimates (ADR-009).");
         out.println("  Accuracy: \u00b120% design target (static pricing tables, not validated against real bills).");
+        out.println();
+    }
+
+    // ── Warmup / cold-start section ───────────────────────────────────────────
+
+    /**
+     * Prints the cold-start overhead section if warmup data is present.
+     * Call after {@link #print} to append it to the same output stream.
+     */
+    public static void printWarmup(WarmupCostSummary warmup, PrintStream out) {
+        if (!warmup.hasData()) return;
+        out.println();
+        out.println("  Cold-start overhead (first " + WarmupCostSummary.WARMUP_SECONDS + "s warmup period):");
+        out.println("    Warmup requests : " + warmup.getRequestCount());
+        out.println(String.format("    CPU core-seconds: %.4f", warmup.getTotalCpuCoreSeconds()));
+        out.println(String.format("    Egress          : %.1f KB", warmup.getTotalEgressBytes() / 1024.0));
+        out.println(String.format("    Cost/JVM restart: $%.6f", warmup.getEstimatedColdStartCostUsd()));
+        out.println("    Note: multiply by (restarts/month × pods) to get monthly cold-start tax.");
+        out.println("          High cold-start cost suggests pre-warming or GraalVM native compilation.");
         out.println();
     }
 

@@ -92,6 +92,57 @@ public final class CostProjector {
         return results;
     }
 
+    // ── Warmup summary ────────────────────────────────────────────────────────
+
+    /**
+     * Computes the cold-start overhead from warmup-period metrics.
+     *
+     * <p>The warmup window is the first {@value WarmupCostSummary#WARMUP_SECONDS} seconds after
+     * agent attach. During this window JIT has not yet optimised the hot paths, so CPU
+     * usage is higher than steady-state. The returned summary captures this one-time
+     * per-JVM-restart cost.
+     *
+     * @param allMetrics all buffered metrics (warmup + live)
+     * @param config     projection config, used to look up pricing
+     * @return summary of warmup cost; check {@link WarmupCostSummary#hasData()} before displaying
+     */
+    public static WarmupCostSummary computeWarmupSummary(
+            List<RequestMetrics> allMetrics,
+            ProjectionConfig config) {
+
+        List<RequestMetrics> warmupList = new ArrayList<>();
+        for (RequestMetrics m : allMetrics) {
+            if (m.isWarmup()) warmupList.add(m);
+        }
+        if (warmupList.isEmpty()) {
+            return new WarmupCostSummary(0, 0.0, 0L, 0L, 0.0);
+        }
+
+        double totalCpu      = 0.0;
+        long   totalDuration = 0L;
+        long   totalEgress   = 0L;
+        for (RequestMetrics m : warmupList) {
+            totalCpu      += m.getCpuCoreSeconds();
+            totalDuration += m.getDurationMs();
+            totalEgress   += m.getEgressBytes();
+        }
+
+        List<InstanceType> instances    = PricingCatalog.getInstances(config.getProvider(), config.getRegion());
+        double             egressPerGib = PricingCatalog.getEgressRatePerGib(config.getProvider(), config.getRegion());
+
+        // Average sustained cores needed during the 30 s warmup window
+        double avgCores    = totalCpu / (double) WarmupCostSummary.WARMUP_SECONDS;
+        InstanceType inst  = selectInstance(avgCores, instances);
+
+        double warmupHours = WarmupCostSummary.WARMUP_SECONDS / 3600.0;
+        double computeCost = inst.getHourlyUsd() * warmupHours;
+        double egressCost  = (totalEgress / GIB_IN_BYTES) * egressPerGib;
+
+        return new WarmupCostSummary(
+                warmupList.size(), totalCpu, totalDuration, totalEgress,
+                computeCost + egressCost);
+    }
+
     // ── Per-route projection ──────────────────────────────────────────────────
 
     private static EndpointCostProjection projectRoute(
