@@ -137,7 +137,7 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install pytest pytest-asyncio httpx flask "fastapi[standard]"
+        run: pip install -e . pytest pytest-asyncio httpx flask "fastapi[standard]"
 
       - name: Run tests
         run: pytest tests/ -v --tb=short
