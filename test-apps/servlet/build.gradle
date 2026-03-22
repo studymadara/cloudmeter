@@ -1,19 +1,17 @@
-// Raw Servlet smoke test — verifies CloudMeter agent works against plain
-// javax.servlet (Tomcat 9.x embedded), no Spring Framework at all.
-// NOT included in CI — manual test harness only.
+// Raw Servlet sample app — verifies agent intercepts HttpServlet.service()
+// directly, with no Spring Framework involved (embedded Tomcat 9.x).
+// Run locally:
+//   ./gradlew :agent:shadowJar :test-apps:servlet:jar
+//   java -javaagent:agent/build/libs/agent-*.jar=provider=AWS,targetUsers=1000 \
+//        -jar test-apps/servlet/build/libs/smoke-app-servlet.jar
 
 plugins {
-    id 'java'
     id 'application'
 }
 
 java {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
-}
-
-repositories {
-    mavenCentral()
 }
 
 dependencies {
@@ -31,17 +29,11 @@ jar {
         attributes 'Main-Class': 'io.cloudmeter.smoketestservlet.Main'
     }
     from {
-        configurations.runtimeClasspath.collect {
-            it.isDirectory() ? it : zipTree(it)
-        }
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
     }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    archiveFileName = 'smoke-test-servlet-app.jar'
-    // Exclude JAR signing metadata — Tomcat JARs are signed and those
-    // signatures become invalid when merged into a fat JAR.
-    exclude 'META-INF/*.SF'
-    exclude 'META-INF/*.DSA'
-    exclude 'META-INF/*.RSA'
+    exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
+    archiveFileName = 'smoke-app-servlet.jar'
 }
 
 jacocoTestCoverageVerification {

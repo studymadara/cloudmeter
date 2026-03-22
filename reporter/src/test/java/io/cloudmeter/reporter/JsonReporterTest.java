@@ -139,4 +139,5 @@ class JsonReporterTest {
     void quote_stringWithBackslash_escaped() {
         assertEquals("\"a\\\\b\"", JsonReporter.quote("a\\b"));
     }
+
 }

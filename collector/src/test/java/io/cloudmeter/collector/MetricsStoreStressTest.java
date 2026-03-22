@@ -3,7 +3,6 @@ package io.cloudmeter.collector;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -228,7 +227,6 @@ class MetricsStoreStressTest {
         ExecutorService pool = Executors.newFixedThreadPool(THREADS);
         CountDownLatch done  = new CountDownLatch(THREADS);
         AtomicInteger errors = new AtomicInteger(0);
-        List<RequestMetrics> results = new ArrayList<>();
 
         for (int t = 0; t < THREADS / 2; t++) {
             pool.submit(() -> {
@@ -244,7 +242,7 @@ class MetricsStoreStressTest {
         for (int t = 0; t < THREADS / 2; t++) {
             pool.submit(() -> {
                 try {
-                    results.addAll(store.getByRoute("GET /route/0"));
+                    store.getByRoute("GET /route/0"); // concurrent read — verify no exception thrown
                 } catch (Exception e) {
                     errors.incrementAndGet();
                 } finally {

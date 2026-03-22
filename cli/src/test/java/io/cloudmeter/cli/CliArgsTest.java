@@ -245,6 +245,33 @@ class CliArgsTest {
         assertEquals(9999, a.getTargetUsers());
     }
 
+    // ── fetchPrices ───────────────────────────────────────────────────────────
+
+    @Test
+    void fetchPrices_defaultIsFalse() {
+        assertFalse(CliArgs.parse("").isFetchPrices());
+    }
+
+    @Test
+    void fetchPrices_trueValue_parsedCorrectly() {
+        assertTrue(CliArgs.parse("fetchPrices=true").isFetchPrices());
+    }
+
+    @Test
+    void fetchPrices_yesValue_parsedAsTrue() {
+        assertTrue(CliArgs.parse("fetchPrices=yes").isFetchPrices());
+    }
+
+    @Test
+    void fetchPrices_oneValue_parsedAsTrue() {
+        assertTrue(CliArgs.parse("fetchPrices=1").isFetchPrices());
+    }
+
+    @Test
+    void fetchPrices_falseValue_parsedCorrectly() {
+        assertFalse(CliArgs.parse("fetchPrices=false").isFetchPrices());
+    }
+
     // ── toProjectionConfig() ─────────────────────────────────────────────────
 
     @Test

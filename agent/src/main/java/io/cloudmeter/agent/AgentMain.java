@@ -4,6 +4,8 @@ import io.cloudmeter.cli.CliArgs;
 import io.cloudmeter.collector.MetricsStore;
 import io.cloudmeter.costengine.CostProjector;
 import io.cloudmeter.costengine.EndpointCostProjection;
+import io.cloudmeter.costengine.LivePricingFetcher;
+import io.cloudmeter.costengine.PricingCatalog;
 import io.cloudmeter.costengine.ProjectionConfig;
 import io.cloudmeter.reporter.DashboardServer;
 import io.cloudmeter.reporter.TerminalReporter;
@@ -112,6 +114,15 @@ public final class AgentMain {
         CliArgs cliArgs = CliArgs.parseWithYaml(args);
         ProjectionConfig config = cliArgs.toProjectionConfig();
 
+        // Optionally fetch latest pricing from the CloudMeter pricing repository.
+        // Runs in a background daemon thread so it never delays application startup.
+        // Falls back silently to embedded static prices if the fetch fails.
+        if (cliArgs.isFetchPrices()) {
+            Thread fetchThread = new Thread(AgentMain::runPricingFetch, "cloudmeter-pricing-fetch");
+            fetchThread.setDaemon(true);
+            fetchThread.start();
+        }
+
         // Initialise the metrics store and start recording immediately
         MetricsStore store = new MetricsStore();
         store.startRecording();
@@ -141,6 +152,15 @@ public final class AgentMain {
 
         // Register shutdown hook: project costs and print terminal report on JVM exit
         registerShutdownHook(store, config);
+    }
+
+    /** Runs a live pricing fetch and logs the outcome. Extracted for testability. */
+    static void runPricingFetch() {
+        CloudMeterLogger.info("Fetching live prices from CloudMeter pricing repository...");
+        boolean ok = LivePricingFetcher.fetchAndApply();
+        if (ok) {
+            CloudMeterLogger.info("Live pricing applied — prices as of " + PricingCatalog.getPricingDate());
+        }
     }
 
     static void startDashboard(MetricsStore store, ProjectionConfig config, int port) {
