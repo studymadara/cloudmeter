@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "cloudmeter"
+version = "0.1.0"
+description = "Per-endpoint cloud cost monitoring for Python web apps"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.8"
+# Zero required dependencies — uses stdlib urllib for everything.
+# Framework packages (Flask, FastAPI, Django) are already in the user's env.
+dependencies = []
+
+[project.optional-dependencies]
+fastapi = ["starlette>=0.20"]
+django  = ["django>=3.2"]
+
+[project.urls]
+Homepage   = "https://github.com/your-org/cloudmeter"
+Repository = "https://github.com/your-org/cloudmeter"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cloudmeter*"]
