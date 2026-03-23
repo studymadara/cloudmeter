@@ -17,6 +17,7 @@ Quick start:
 
 Dashboard: http://localhost:7777
 """
+
 from ._sidecar import ensure_binary, start, stop
 
 __all__ = ["start", "stop", "ensure_binary"]

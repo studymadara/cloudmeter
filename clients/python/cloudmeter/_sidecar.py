@@ -4,6 +4,7 @@ Binary download and subprocess management for the CloudMeter sidecar.
 The binary lives at ~/.cloudmeter/bin/cloudmeter-sidecar.
 On first use it is downloaded from the latest GitHub Release automatically.
 """
+
 import atexit
 import json
 import os
@@ -75,8 +76,7 @@ def _download() -> None:
     )
     if download_url is None:
         raise RuntimeError(
-            f"[cloudmeter] No binary found for your platform ({asset}). "
-            f"See https://github.com/{GITHUB_REPO}/releases"
+            f"[cloudmeter] No binary found for your platform ({asset}). See https://github.com/{GITHUB_REPO}/releases"
         )
 
     print(f"[cloudmeter] Downloading {asset} ({release['tag_name']})...", file=sys.stderr)
@@ -126,13 +126,20 @@ def start(
 
         cmd = [
             str(binary),
-            "--provider", provider,
-            "--region", region,
-            "--target-users", str(target_users),
-            "--requests-per-user-per-second", str(requests_per_user_per_second),
-            "--budget-usd", str(budget_usd),
-            "--ingest-port", str(ingest_port),
-            "--dashboard-port", str(dashboard_port),
+            "--provider",
+            provider,
+            "--region",
+            region,
+            "--target-users",
+            str(target_users),
+            "--requests-per-user-per-second",
+            str(requests_per_user_per_second),
+            "--budget-usd",
+            str(budget_usd),
+            "--ingest-port",
+            str(ingest_port),
+            "--dashboard-port",
+            str(dashboard_port),
         ]
         _process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         _ingest_port = ingest_port

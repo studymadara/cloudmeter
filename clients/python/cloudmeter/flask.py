@@ -11,6 +11,7 @@ Usage:
     cm = CloudMeterFlask()
     cm.init_app(app)
 """
+
 import time
 
 from . import _reporter, _sidecar
@@ -32,11 +33,13 @@ class CloudMeterFlask:
 
 def _before():
     from flask import g
+
     g._cm_start = time.monotonic()
 
 
 def _after(response):
     from flask import g, request
+
     try:
         duration_ms = int((time.monotonic() - g._cm_start) * 1000)
         # request.url_rule gives the template e.g. /api/users/<int:id>

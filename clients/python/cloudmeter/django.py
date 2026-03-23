@@ -16,6 +16,7 @@ Add to settings.py:
 
 Route templates come from Django's URL resolver (e.g. api/users/<int:pk>/).
 """
+
 import time
 
 from . import _reporter, _sidecar
@@ -32,6 +33,7 @@ class CloudMeterMiddleware:
             _started = True
             try:
                 from django.conf import settings
+
                 opts = getattr(settings, "CLOUDMETER", {})
             except Exception:
                 opts = {}

@@ -10,6 +10,7 @@ Usage:
 Route templates (e.g. /api/users/{user_id}) are captured via Starlette's
 routing scope — no manual normalization needed.
 """
+
 import time
 
 from . import _reporter, _sidecar
