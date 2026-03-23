@@ -14,7 +14,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: ['11', '17', '21']
+        # Java 17 is the build toolchain floor (Spring Boot 3 test-app requires it).
+        # Java 21 validates agent compatibility on the latest LTS.
+        # Agent bytecode targets --release 8, so runtime compatibility on older JVMs
+        # is guaranteed by the compiler flag, not by building on an older JDK.
+        java: ['17', '21']
 
     steps:
       - name: Checkout
