@@ -15,7 +15,7 @@ java {
 
 dependencies {
     implementation 'org.glassfish.jersey.containers:jersey-container-servlet-core:2.41'
-    implementation 'org.glassfish.jersey.inject:jersey-hk2:2.41'
+    implementation 'org.glassfish.jersey.inject:jersey-hk2:4.0.2'
     implementation 'org.apache.tomcat.embed:tomcat-embed-core:9.0.87'
 }
 
