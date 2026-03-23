@@ -4,7 +4,7 @@ CloudMeter ships lightweight middleware for Python and Node.js web frameworks. B
 
 1. The middleware intercepts each HTTP request and records route, method, status code, and duration.
 2. On first request, a small Rust sidecar binary (~1.4 MB) is downloaded automatically from the [latest GitHub release](https://github.com/studymadara/cloudmeter/releases/latest).
-3. Metrics are forwarded to the sidecar over a local socket. The sidecar runs the cost projection and exposes the [dashboard](Dashboard.md) at `http://localhost:7777`.
+3. Metrics are forwarded to the sidecar over a local socket. The sidecar runs the cost projection and exposes the [dashboard](Dashboard) at `http://localhost:7777`.
 
 No Rust toolchain required. No cloud credentials. No code changes beyond adding the middleware.
 
@@ -38,7 +38,7 @@ sequenceDiagram
 
 > **`pip install cloudmeter` and `npm install cloudmeter` are planned but not yet published to PyPI or npm.**
 >
-> Until the packages are published, install from source — see [Getting Started](Getting-Started.md) for the one-liner.
+> Until the packages are published, install from source — see [Getting Started](Getting-Started) for the one-liner.
 >
 > Follow [this issue / release notes](https://github.com/studymadara/cloudmeter/releases) to be notified when packages land on PyPI and npm.
 
@@ -261,7 +261,7 @@ To fix:
 
 ## See also
 
-- [Getting Started](Getting-Started.md) — install from source and your first recording
-- [Dashboard](Dashboard.md) — using the live cost dashboard
-- [Cost Projection Model](Cost-Projection-Model.md) — how costs are projected
-- [Contributing](Contributing.md) — adding framework support or pricing data
+- [Getting Started](Getting-Started) — install from source and your first recording
+- [Dashboard](Dashboard) — using the live cost dashboard
+- [Cost Projection Model](Cost-Projection-Model) — how costs are projected
+- [Contributing](Contributing) — adding framework support or pricing data

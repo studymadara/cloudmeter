@@ -79,9 +79,9 @@ The dashboard shows:
 
 ### Next steps
 
-- [Agent Configuration](Agent-Configuration.md) — tune target users, budget, port, and provider
-- [CLI Usage](CLI-Usage.md) — export reports, add cost gates to CI/CD
-- [Cost Projection Model](Cost-Projection-Model.md) — understand what is being measured and why
+- [Agent Configuration](Agent-Configuration) — tune target users, budget, port, and provider
+- [CLI Usage](CLI-Usage) — export reports, add cost gates to CI/CD
+- [Cost Projection Model](Cost-Projection-Model) — understand what is being measured and why
 
 ### Spring Boot quick start
 
@@ -197,7 +197,7 @@ CLOUDMETER = {
 
 Metrics are forwarded to the sidecar process and exposed at [http://localhost:7777](http://localhost:7777) — the same dashboard as the Java agent.
 
-See [Python & Node.js Clients](Python-Node-Clients.md) for all configuration options.
+See [Python & Node.js Clients](Python-Node-Clients) for all configuration options.
 
 ---
 
@@ -245,4 +245,4 @@ await fastify.register(cloudMeterPlugin, { provider: 'AWS', region: 'us-east-1',
 
 Metrics are forwarded to the sidecar process and exposed at [http://localhost:7777](http://localhost:7777) — the same dashboard as the Java agent.
 
-See [Python & Node.js Clients](Python-Node-Clients.md) for all configuration options.
+See [Python & Node.js Clients](Python-Node-Clients) for all configuration options.

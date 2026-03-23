@@ -143,7 +143,7 @@ The agent module compiles to `--release 8` so it can attach to any JVM from Java
 
 ### ADR-009 — Standalone cost attribution
 
-Each endpoint's cost is computed as if a dedicated server served only that endpoint. See [Cost Projection Model](Cost-Projection-Model.md) for full rationale.
+Each endpoint's cost is computed as if a dedicated server served only that endpoint. See [Cost Projection Model](Cost-Projection-Model) for full rationale.
 
 ### ADR-010 — Fail-safe instrumentation
 
