@@ -14,6 +14,37 @@ cloudmeter/
 └── integration-test/   End-to-end pipeline tests
 ```
 
+## Dependency graph
+
+```mermaid
+graph TD
+    IT[integration-test]
+    A[agent]
+    CLI[cli]
+    R[reporter]
+    CE[cost-engine]
+    C[collector]
+
+    IT --> C
+    IT --> CE
+    IT --> R
+    IT --> CLI
+
+    A --> C
+    A --> CE
+    A --> R
+    A --> CLI
+
+    CLI --> C
+    CLI --> CE
+    CLI --> R
+
+    R --> C
+    R --> CE
+
+    CE --> C
+```
+
 ### collector
 
 Core data types and the in-memory metrics store.
@@ -133,13 +164,29 @@ The dashboard is a developer tool for local use. Binding to localhost prevents a
 | agent | 80% (instrumentation code is difficult to unit-test without a live JVM) |
 | integration-test | 0% (cross-module behaviour tests, not internal branch coverage) |
 
-## Dependency graph
+## Runtime view — request lifecycle
 
-```
-integration-test → collector, cost-engine, reporter, cli
-agent            → collector, cost-engine, reporter, cli
-cli              → collector, cost-engine, reporter
-reporter         → collector, cost-engine
-cost-engine      → collector
-collector        → (no internal dependencies)
+```mermaid
+sequenceDiagram
+    participant App as Your App
+    participant Advice as HttpServletAdvice
+    participant TL as ThreadLocal Context
+    participant SC as ThreadStateCollector
+    participant MS as MetricsStore
+    participant CP as CostProjector
+    participant DB as Dashboard :7777
+
+    App->>Advice: HTTP request enters servlet
+    Advice->>TL: create RequestContext (route, startTime, threadId)
+    loop every 10ms while request is active
+        SC->>TL: poll active thread states
+        SC->>MS: accumulate RUNNABLE cpu-ns
+    end
+    App->>Advice: response committed
+    Advice->>MS: flush RequestMetrics (cpu, egress, status, duration)
+    Advice->>TL: clear RequestContext
+
+    DB->>CP: GET /api/projections (every 5s)
+    CP->>MS: snapshot()
+    CP-->>DB: cost projections JSON
 ```

@@ -8,6 +8,30 @@ CloudMeter ships lightweight middleware for Python and Node.js web frameworks. B
 
 No Rust toolchain required. No cloud credentials. No code changes beyond adding the middleware.
 
+```mermaid
+sequenceDiagram
+    participant Client as HTTP Client
+    participant App as Your App
+    participant MW as CloudMeter Middleware
+    participant SC as Sidecar Process
+    participant DB as Dashboard :7777
+
+    App->>MW: startup — download sidecar binary if missing
+    MW->>SC: spawn sidecar subprocess
+
+    loop each HTTP request
+        Client->>App: request
+        App->>MW: on request enter
+        MW->>App: pass through (zero blocking)
+        App-->>MW: on response finish
+        MW->>SC: report(route, method, status, durationMs)
+    end
+
+    SC->>SC: project cost from accumulated metrics
+    DB->>SC: GET /api/projections (browser polls every 5s)
+    SC-->>DB: cost projections JSON
+```
+
 ---
 
 ## Package status

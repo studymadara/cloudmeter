@@ -27,6 +27,31 @@ CloudMeter groups requests into route templates before computing cost. `/api/use
 
 ## The projection formula
 
+```mermaid
+flowchart TD
+    A([Observed requests for a route]) --> B
+
+    B["Step 1 — Median metrics\np50 of cpuCoreSeconds & egressBytes per request"]
+    B --> C
+
+    C["Step 2 — Observed RPS\nrequestCount ÷ recordingDurationSeconds"]
+    C --> D
+
+    D["Step 3 — Scale to target\nscaleFactor = targetTotalRps ÷ observedTotalRps\nprojectedRps = observedRps × scaleFactor"]
+    D --> E
+
+    E["Step 4 — Instance selection\nsmallest instance where vCPU ≥ projectedRps × medianCpuCoreSeconds"]
+    E --> F
+
+    F["Step 5 — Monthly cost\ncompute = instance.hourlyUsd × 730\negress = projectedRps × medianEgressBytes × egressRate\ntotal = compute + egress"]
+    F --> G{12 scale points\ncomplete?}
+
+    G -- no, next scale point --> D
+    G -- yes --> H
+
+    H(["Cost curve — 12 points: 100 → 1M users"])
+```
+
 Given a set of observed requests for a route, cost is projected as follows:
 
 ### Step 1 — Observe median metrics
