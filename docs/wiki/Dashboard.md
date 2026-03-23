@@ -81,8 +81,8 @@ The dashboard server exposes these HTTP endpoints directly:
 | `POST` | `/api/recording/start` | Reset metrics store and start recording |
 | `POST` | `/api/recording/stop` | Stop recording (data retained) |
 
-The `/api/projections` response format is the same as the `JsonReporter` output — see [CLI Usage](CLI-Usage.md) for the schema.
+The `/api/projections` response format is the same as the `JsonReporter` output — see [CLI Usage](CLI-Usage) for the schema.
 
 ## Using the dashboard in CI/CD
 
-While the dashboard is primarily for local development, you can also point the `cloudmeter report` CLI command at it from a CI pipeline. See [CLI Usage](CLI-Usage.md).
+While the dashboard is primarily for local development, you can also point the `cloudmeter report` CLI command at it from a CI pipeline. See [CLI Usage](CLI-Usage).

@@ -1,5 +1,7 @@
 # Agent Configuration
 
+This page covers the **Java agent** configuration. For Python and Node.js middleware options see [Python & Node.js Clients](Python-Node-Clients#configuration-reference-python).
+
 Configuration is passed as a comma-separated `key=value` string in the `-javaagent` argument. All keys are case-insensitive.
 
 ```bash

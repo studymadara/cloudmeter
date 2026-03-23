@@ -87,7 +87,7 @@ The Python (`clients/python/`) and Node.js (`clients/node/`) clients already exi
 
 ## Architecture decisions
 
-Read [`arc42.md`](../../arc42.md) and the [Architecture wiki page](Architecture.md) before making structural changes. Every module boundary, dependency direction, and cross-cutting choice is documented and intentional. If you want to propose a change that touches an ADR, open an issue first to discuss.
+Read [`arc42.md`](../../arc42.md) and the [Architecture wiki page](Architecture) before making structural changes. Every module boundary, dependency direction, and cross-cutting choice is documented and intentional. If you want to propose a change that touches an ADR, open an issue first to discuss.
 
 ## Pull request checklist
 
