@@ -76,9 +76,14 @@ Add a new `@Advice` class in `agent/src/main/java/io/cloudmeter/agent/instrument
 
 Edit `reporter/src/main/resources/io/cloudmeter/reporter/dashboard.html`. The dashboard is vanilla JS with Chart.js. Good areas: variance warnings, a per-endpoint drilldown panel, theming.
 
-**Language agents**
+**Python and Node.js clients**
 
-A Node.js or Python sidecar that speaks the same wire protocol (JSON over HTTP to `:7777`) and emits the same `RequestMetrics` fields would extend CloudMeter to non-JVM languages. See the `collector` module for the data model.
+The Python (`clients/python/`) and Node.js (`clients/node/`) clients already exist. Good areas to contribute:
+
+- Add support for additional Python frameworks (aiohttp, Tornado, Sanic)
+- Add support for additional Node.js frameworks (Hapi, Koa, NestJS)
+- Publish the packages to PyPI and npm (tracked: see open issues)
+- Improve coverage of edge cases (streaming responses, WebSockets)
 
 ## Architecture decisions
 
@@ -86,10 +91,22 @@ Read [`arc42.md`](../../arc42.md) and the [Architecture wiki page](Architecture.
 
 ## Pull request checklist
 
+**Java agent**
 - [ ] Tests added for new public API
 - [ ] Coverage thresholds still pass (`./gradlew jacocoTestCoverageVerification`)
 - [ ] Integration tests still pass (`./gradlew :integration-test:test`)
 - [ ] No new external dependencies added to collector, cost-engine, or cli
 - [ ] Agent module code compiles with `--release 8` (no `var`, no records, no text blocks)
 - [ ] `arc42.md` updated if you changed an ADR or added a new architectural concept
+
+**Python client** (if touching `clients/python/`)
+- [ ] `ruff check cloudmeter/` passes
+- [ ] `ruff format --check cloudmeter/` passes
+- [ ] `pytest --cov=cloudmeter --cov-fail-under=80` passes
+
+**Node.js client** (if touching `clients/node/`)
+- [ ] `npm run lint` passes
+- [ ] `npm run test:coverage` passes (80% line/function, 70% branch threshold)
+
+**All PRs**
 - [ ] PR description explains *why*, not just *what*
