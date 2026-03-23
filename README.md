@@ -4,12 +4,17 @@
 > No APM tool tells you this. CloudMeter does.
 
 [![CI](https://github.com/studymadara/cloudmeter/actions/workflows/ci.yml/badge.svg)](https://github.com/studymadara/cloudmeter/actions/workflows/ci.yml)
+[![CI — Rust](https://github.com/studymadara/cloudmeter/actions/workflows/ci-rust.yml/badge.svg)](https://github.com/studymadara/cloudmeter/actions/workflows/ci-rust.yml)
 [![codecov](https://codecov.io/gh/studymadara/cloudmeter/branch/develop/graph/badge.svg)](https://codecov.io/gh/studymadara/cloudmeter)
 [![GitHub release](https://img.shields.io/github/v/release/studymadara/cloudmeter)](https://github.com/studymadara/cloudmeter/releases/latest)
 [![GitHub downloads](https://img.shields.io/github/downloads/studymadara/cloudmeter/total)](https://github.com/studymadara/cloudmeter/releases)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/studymadara/cloudmeter/badge)](https://scorecard.dev/viewer/?uri=github.com/studymadara/cloudmeter)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Java 8+](https://img.shields.io/badge/Java-8%2B-orange.svg)](https://openjdk.org/)
+[![Python 3.8+](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://python.org/)
+[![Node.js 16+](https://img.shields.io/badge/Node.js-16%2B-brightgreen.svg)](https://nodejs.org/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![GitHub commit activity](https://img.shields.io/github/commit-activity/m/studymadara/cloudmeter)](https://github.com/studymadara/cloudmeter/commits/main)
 
 CloudMeter is a **free, open source Java agent** that attaches to your running JVM and tells you exactly what each API endpoint costs to run on AWS, GCP, or Azure — with no code changes, no cloud credentials, and no SaaS subscription.
 
@@ -243,6 +248,16 @@ cloudmeter/
 │
 ├── cli/               CloudMeterCli, ReportCommand, CliArgs
 │
+├── sidecar-rs/        Rust sidecar binary (~1.4 MB) for Python/Node.js apps
+│                      axum HTTP server · dual-port (ingest :7778, dashboard :7777)
+│                      Cross-compiled for Linux/macOS/Windows via GitHub Actions
+│
+├── clients/
+│   ├── python/        pip install cloudmeter — Flask, FastAPI, Django middleware
+│   │                  Auto-downloads sidecar binary · fire-and-forget reporter
+│   └── node/          npm install cloudmeter — Express, Fastify middleware
+│                      Auto-downloads sidecar binary · fire-and-forget reporter
+│
 ├── integration-test/  Full pipeline JUnit tests (MetricsStore → reporters → CLI exit codes)
 │
 ├── test-apps/         Sample apps for local and CI e2e testing
@@ -252,10 +267,165 @@ cloudmeter/
 │   └── jaxrs/         JAX-RS / Jersey / embedded Tomcat
 │
 ├── pricing/           cloudmeter-prices.json — fetched at runtime with fetchPrices=true
-└── scripts/           e2e.sh, measure-overhead.sh
+└── scripts/           e2e.sh, smoke-rust.sh, smoke-python.sh, smoke-node.sh, measure-overhead.sh
 ```
 
 Architecture decisions and full system design: [`arc42.md`](arc42.md)
+
+---
+
+## Python and Node.js support
+
+CloudMeter also works for Python (Flask, FastAPI, Django) and Node.js (Express, Fastify) apps via a lightweight native sidecar and a one-line middleware.
+
+### Install
+
+```bash
+# Python
+pip install cloudmeter
+
+# Node.js
+npm install cloudmeter
+```
+
+The sidecar binary (~1.4 MB, no runtime required) is downloaded automatically on first use.
+
+### Flask
+```python
+from cloudmeter.flask import CloudMeterFlask
+app = Flask(__name__)
+CloudMeterFlask(app, provider="AWS", target_users=1000)
+```
+
+### FastAPI
+```python
+from cloudmeter.fastapi import CloudMeterMiddleware
+app.add_middleware(CloudMeterMiddleware, provider="AWS", target_users=1000)
+```
+
+### Django — `settings.py`
+```python
+MIDDLEWARE = ['cloudmeter.django.CloudMeterMiddleware', ...]
+CLOUDMETER  = {"provider": "AWS", "target_users": 1000}
+```
+
+### Express
+```js
+const { cloudMeter } = require('cloudmeter')
+app.use(cloudMeter({ provider: 'AWS', targetUsers: 1000 }))
+```
+
+### Fastify
+```js
+const { cloudMeterPlugin } = require('cloudmeter')
+await fastify.register(cloudMeterPlugin, { provider: 'AWS', targetUsers: 1000 })
+```
+
+Open **http://localhost:7777** — same dashboard, same cost curves.
+
+> **CPU accuracy note:** Python and Node.js cannot attribute per-request CPU time (GIL / single event loop). Wall-clock duration is used as proxy — cost accuracy is ±40% vs the Java agent's ±20%. Egress and instance selection are not affected.
+
+See [`clients/python/README.md`](clients/python/README.md) and [`clients/node/README.md`](clients/node/README.md) for full documentation.
+
+---
+
+## Spring Boot Starter (WebFlux)
+
+For **Spring WebFlux** applications, add the starter instead of using `-javaagent`:
+
+```xml
+<!-- Maven -->
+<dependency>
+  <groupId>io.cloudmeter</groupId>
+  <artifactId>cloudmeter-spring-boot-starter</artifactId>
+  <version>0.3.0</version>
+</dependency>
+```
+
+```groovy
+// Gradle
+implementation 'io.cloudmeter:cloudmeter-spring-boot-starter:0.3.0'
+```
+
+Configure via `application.properties`:
+
+```properties
+spring.cloudmeter.provider=AWS
+spring.cloudmeter.region=us-east-1
+spring.cloudmeter.target-users=5000
+spring.cloudmeter.budget-usd=200
+
+# Expose the Actuator endpoint
+management.endpoints.web.exposure.include=cloudmeter
+```
+
+Then query `GET /actuator/cloudmeter` for live cost projections.
+
+> **Note:** The starter handles WebFlux apps via a `WebFilter`. For Spring MVC apps, continue using the `-javaagent` flag — the starter adds Actuator integration on top.
+
+---
+
+## Running in Docker / Kubernetes
+
+CloudMeter is a **development and staging tool** — attach it to your app during load testing or profiling, not in production.
+
+### Docker
+
+Pass the agent via `JAVA_TOOL_OPTIONS` so it attaches automatically without modifying your `CMD`:
+
+```dockerfile
+FROM eclipse-temurin:17-jre
+WORKDIR /app
+
+# Copy your app and the CloudMeter agent
+COPY target/myapp.jar .
+COPY cloudmeter-agent.jar /cloudmeter/cloudmeter-agent.jar
+
+# Attach agent via env var — no CMD change needed
+ENV JAVA_TOOL_OPTIONS="-javaagent:/cloudmeter/cloudmeter-agent.jar=provider=AWS,targetUsers=1000"
+
+EXPOSE 8080 7777
+CMD ["java", "-jar", "myapp.jar"]
+```
+
+Then expose port `7777` to access the CloudMeter dashboard from your host:
+
+```bash
+docker run -p 8080:8080 -p 7777:7777 myapp
+```
+
+### Kubernetes (init container pattern)
+
+Use an init container to copy the agent JAR into a shared volume:
+
+```yaml
+initContainers:
+  - name: cloudmeter-agent
+    image: busybox
+    command: ["sh", "-c", "wget -O /cloudmeter/cloudmeter-agent.jar https://github.com/studymadara/cloudmeter/releases/latest/download/cloudmeter-agent-v0.3.0.jar"]
+    volumeMounts:
+      - name: cloudmeter-vol
+        mountPath: /cloudmeter
+
+containers:
+  - name: myapp
+    image: myapp:latest
+    env:
+      - name: JAVA_TOOL_OPTIONS
+        value: "-javaagent:/cloudmeter/cloudmeter-agent.jar=provider=AWS,targetUsers=1000"
+    ports:
+      - containerPort: 8080
+      - containerPort: 7777   # CloudMeter dashboard — expose only within cluster
+    volumeMounts:
+      - name: cloudmeter-vol
+        mountPath: /cloudmeter
+
+volumes:
+  - name: cloudmeter-vol
+    emptyDir: {}
+```
+
+> **Never expose port 7777 publicly.** The CloudMeter dashboard is unauthenticated and intended for local/cluster-internal access only (ADR-009).
 
 ---
 
@@ -265,7 +435,7 @@ Good first areas:
 - Regional pricing multipliers (cost-engine)
 - Additional framework support (Micronaut, Quarkus)
 - Dashboard improvements
-- Language agents (Node.js, Python) following the same wire protocol
+- FastAPI async middleware (current version uses Starlette BaseHTTPMiddleware)
 
 Read [`arc42.md`](arc42.md) before contributing — it explains every architectural decision and why it was made. Read [`CONTRIBUTING.md`](CONTRIBUTING.md) for the branching model and PR process.
 

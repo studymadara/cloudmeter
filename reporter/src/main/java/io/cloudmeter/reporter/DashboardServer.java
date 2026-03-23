@@ -4,11 +4,13 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import io.cloudmeter.collector.MetricsStore;
+import io.cloudmeter.collector.RequestMetrics;
 import io.cloudmeter.collector.RouteStats;
 import io.cloudmeter.collector.RouteStatsCalculator;
 import io.cloudmeter.costengine.CostProjector;
 import io.cloudmeter.costengine.EndpointCostProjection;
 import io.cloudmeter.costengine.ProjectionConfig;
+import io.cloudmeter.costengine.WarmupCostSummary;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -95,10 +97,11 @@ public final class DashboardServer {
                 sendResponse(exchange, 405, "text/plain", "Method Not Allowed");
                 return;
             }
-            List<EndpointCostProjection> projections =
-                    CostProjector.project(store.getAll(), config);
+            List<RequestMetrics> all = store.getAll();
+            List<EndpointCostProjection> projections = CostProjector.project(all, config);
+            WarmupCostSummary warmup = CostProjector.computeWarmupSummary(all, config);
             ByteArrayOutputStream buf = new ByteArrayOutputStream();
-            JsonReporter.print(projections, config, new PrintStream(buf, true, "UTF-8"));
+            JsonReporter.print(projections, warmup, config, new PrintStream(buf, true, "UTF-8"));
             byte[] body = buf.toByteArray();
             exchange.getResponseHeaders().set("Content-Type", "application/json");
             exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");

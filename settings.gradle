@@ -6,6 +6,7 @@ include 'cost-engine'
 include 'agent'
 include 'reporter'
 include 'cli'
+include 'spring-boot-starter'
 
 // Pipeline integration tests (JUnit, no agent instrumentation)
 include 'integration-test'

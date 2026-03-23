@@ -1,0 +1,37 @@
+{
+  "name": "cloudmeter",
+  "version": "0.1.0",
+  "description": "Per-endpoint cloud cost monitoring for Node.js web apps",
+  "main": "src/index.js",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "cloud",
+    "cost",
+    "monitoring",
+    "express",
+    "fastify",
+    "devtools"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/studymadara/cloudmeter"
+  },
+  "files": [
+    "src/"
+  ],
+  "devDependencies": {
+    "c8": "^10.1.2",
+    "eslint": "^8.57.0",
+    "express": "^4.22.1",
+    "fastify": "^4.29.1"
+  },
+  "scripts": {
+    "test": "node --test src/__tests__/reporter.test.js src/__tests__/express.test.js src/__tests__/fastify.test.js",
+    "test:coverage": "c8 --reporter=lcov --reporter=text --lines=80 --branches=70 --functions=80 --exclude='src/sidecar.js' node --test src/__tests__/reporter.test.js src/__tests__/express.test.js src/__tests__/fastify.test.js",
+    "test:junit": "node --test --test-reporter=./scripts/junit-reporter.mjs --test-reporter-destination=test-results.xml src/__tests__/reporter.test.js src/__tests__/express.test.js src/__tests__/fastify.test.js",
+    "lint": "eslint src/"
+  }
+}

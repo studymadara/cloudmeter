@@ -1,0 +1,36 @@
+plugins {
+    id 'java'
+    id 'jacoco'
+}
+
+description = 'CloudMeter Spring Boot auto-configuration and WebFlux support'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+dependencies {
+    implementation project(':collector')
+    implementation project(':cost-engine')
+    implementation project(':reporter')
+
+    compileOnly 'org.springframework.boot:spring-boot-autoconfigure:3.2.0'
+    compileOnly 'org.springframework.boot:spring-boot-actuator-autoconfigure:3.2.0'
+    compileOnly 'org.springframework:spring-webflux:6.1.0'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test:3.2.0'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webflux:3.2.0'
+    testImplementation 'org.springframework.boot:spring-boot-starter-actuator:3.2.0'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.80
+            }
+        }
+    }
+}

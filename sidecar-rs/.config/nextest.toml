@@ -1,0 +1,8 @@
+# cargo-nextest configuration
+# https://nexte.st/book/configuration.html
+
+[profile.ci]
+# Output JUnit XML so CI can upload test results to Codecov / GitHub Summary
+junit = { path = "junit.xml" }
+# Fail-fast on first test failure so logs are easier to read in CI
+fail-fast = false
