@@ -231,6 +231,34 @@ The sidecar is a single statically-linked binary with no runtime dependencies. S
 
 ---
 
+## Known limitations
+
+### Streaming responses and SSE
+
+For streaming responses (Server-Sent Events, chunked transfer, file downloads), the middleware records `durationMs` as the time until the **first byte** is flushed, not until the stream closes. `egressBytes` will be `0` because the response size is unknown at the point the middleware hooks the finish event.
+
+This means streaming endpoints will show lower-than-actual costs. Treat their projections as a floor, not a ceiling. Fully-buffered JSON responses are unaffected.
+
+### Reverse proxies and path rewriting
+
+If your app sits behind a reverse proxy that **rewrites the path** before it reaches the framework (e.g. stripping a `/api/v1` prefix), CloudMeter sees the rewritten path, not the original. Route templates will reflect what the framework registered, not what the client sent.
+
+If the proxy passes the original path via `X-Forwarded-Prefix` or a similar header, configure your framework to restore the full path before CloudMeter middleware runs.
+
+### Sidecar binary download fails
+
+On first startup, the middleware downloads the sidecar binary from GitHub Releases. If this fails (air-gapped environment, firewall, no internet access), the middleware logs a warning to stderr and **continues running your app normally** — CloudMeter silently no-ops and the dashboard at `:7777` will not be available.
+
+To fix:
+1. Download the correct binary manually from the [latest release](https://github.com/studymadara/cloudmeter/releases/latest)
+2. Place it in the OS cache directory:
+   - **Linux/macOS:** `~/.cache/cloudmeter/cloudmeter-sidecar`
+   - **Windows:** `%LOCALAPPDATA%\cloudmeter\cloudmeter-sidecar.exe`
+3. Make it executable (`chmod +x` on Linux/macOS)
+4. Restart your app — the middleware will detect the binary and skip the download
+
+---
+
 ## See also
 
 - [Getting Started](Getting-Started.md) — install from source and your first recording

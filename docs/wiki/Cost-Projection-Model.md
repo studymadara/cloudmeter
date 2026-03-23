@@ -145,6 +145,16 @@ Beyond the median, CloudMeter tracks the cost distribution for each route. A hig
 
 The cost curve chart shows the p50 projection. Variance is shown in the terminal report footer when the ratio exceeds 1.5×.
 
+## Known measurement limitations
+
+| Scenario | Behaviour | Impact |
+|---|---|---|
+| **Streaming / SSE / chunked responses** | `egressBytes` captures response body size only; TCP framing not included | Egress cost is a floor — actual network cost will be slightly higher |
+| **Reverse proxy path rewriting** | CloudMeter sees the path after rewriting; templates reflect framework registration | Routes may differ from what the client sent if a prefix is stripped upstream |
+| **Very short requests (< 10ms)** | Thread state sampler at 10ms interval may record zero samples | CPU cost recorded as 0; egress-only cost still accurate |
+| **Virtual threads (Java 21 + Spring Boot 3.2+)** | `ThreadMXBean.getThreadInfo()` unreliable for virtual threads | Not supported in v1; use platform threads |
+| **GraalVM native images** | `-javaagent` does not work on native-compiled binaries | Out of scope — use the JVM runtime |
+
 ## Pricing data
 
 Pricing tables are static, embedded in the agent JAR, and sourced from public AWS, GCP, and Azure on-demand pricing pages. No cloud credentials are ever requested or stored.
