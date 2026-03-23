@@ -82,9 +82,9 @@ jobs:
             musl:     false
             cross:    false
 
-          # macOS Intel — still common in corporate dev environments
+          # macOS Intel — cross-compiled from ARM runner (macos-13 unavailable on free plan)
           - label:    macos-x86_64
-            runner:   macos-13
+            runner:   macos-latest
             target:   x86_64-apple-darwin
             asset:    cloudmeter-sidecar-macos-x86_64
             musl:     false
