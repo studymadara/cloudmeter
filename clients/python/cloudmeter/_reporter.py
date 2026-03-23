@@ -7,6 +7,7 @@ All exceptions are swallowed — this must never crash the host application.
 import json
 import threading
 import urllib.request
+
 from . import _sidecar
 
 

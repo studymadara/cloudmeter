@@ -78,6 +78,9 @@ jobs:
       - name: Ruff lint
         run: ruff check cloudmeter/
 
+      - name: Ruff format check
+        run: ruff format --check cloudmeter/
+
 # ── Node.js client: lint ──────────────────────────────────────────────────────
   lint-node:
     name: Lint — Node.js client (eslint)
@@ -276,12 +279,24 @@ jobs:
       - name: Run tests with coverage
         run: npm run test:coverage
 
+      - name: Generate JUnit test results
+        if: always()
+        run: npm run test:junit || true
+
       - name: Upload lcov coverage artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-node-${{ matrix.node-version }}
           path: clients/node/coverage/lcov.info
+          retention-days: 14
+
+      - name: Upload JUnit test results artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-node-${{ matrix.node-version }}
+          path: clients/node/test-results.xml
           retention-days: 14
 
       - name: Upload coverage to Codecov
@@ -291,6 +306,14 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: clients/node/coverage/lcov.info
           flags: node-${{ matrix.node-version }}
+          fail_ci_if_error: false
+
+      - name: Upload test results to Codecov
+        if: always()
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: clients/node/test-results.xml
           fail_ci_if_error: false
 
 # ── Rust: build debug binary (smoke test dependency) ──────────────────────────
