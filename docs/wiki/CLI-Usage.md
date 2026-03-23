@@ -104,6 +104,17 @@ Example output:
 
 ## CI/CD cost gate
 
+```mermaid
+flowchart LR
+    A([CI pipeline starts]) --> B[Start app with\nCloudMeter agent]
+    B --> C[Run integration\ntests]
+    C --> D[cloudmeter report\n--format json --budget 500]
+    D --> E{Any endpoint\nexceeds budget?}
+    E -- no, exit 0 --> F([Pipeline passes])
+    E -- yes, exit 1 --> G([Pipeline fails])
+    D --> H[Upload cost-report.json\nas CI artifact]
+```
+
 Add a cost gate to your CI pipeline that fails the build if any endpoint breaches the budget:
 
 **GitHub Actions:**

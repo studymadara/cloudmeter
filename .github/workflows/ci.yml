@@ -8,17 +8,26 @@ on:
 
 jobs:
   build:
-    name: Build, Test & Coverage
+    name: Build, Test & Coverage (Java ${{ matrix.java }})
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Java 17 is the build toolchain floor (Spring Boot 3 test-app requires it).
+        # Java 21 validates agent compatibility on the latest LTS.
+        # Agent bytecode targets --release 8, so runtime compatibility on older JVMs
+        # is guaranteed by the compiler flag, not by building on an older JDK.
+        java: ['17', '21']
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Set up Java 17
+      - name: Set up Java ${{ matrix.java }}
         uses: actions/setup-java@v5
         with:
-          java-version: '17'
+          java-version: ${{ matrix.java }}
           distribution: 'temurin'
           cache: 'gradle'
 
@@ -43,7 +52,7 @@ jobs:
       - name: Upload agent fat JAR
         uses: actions/upload-artifact@v7
         with:
-          name: cloudmeter-agent
+          name: cloudmeter-agent-java-${{ matrix.java }}
           path: agent/build/libs/agent-*.jar
           retention-days: 30
 
@@ -51,7 +60,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: coverage-reports
+          name: coverage-reports-java-${{ matrix.java }}
           path: '**/build/reports/jacoco/test/html/'
           retention-days: 14
 
@@ -59,7 +68,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: coverage-xml
+          name: coverage-xml-java-${{ matrix.java }}
           path: '**/build/reports/jacoco/test/jacocoTestReport.xml'
           retention-days: 14
 
@@ -69,7 +78,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: '**/build/reports/jacoco/test/jacocoTestReport.xml'
-          flags: unittests
+          flags: java-${{ matrix.java }}
           fail_ci_if_error: false
 
       - name: Upload test results to Codecov
@@ -84,7 +93,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: test-results
+          name: test-results-java-${{ matrix.java }}
           path: '**/build/test-results/test/*.xml'
           retention-days: 14
 

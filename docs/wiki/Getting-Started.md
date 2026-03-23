@@ -6,6 +6,18 @@ CloudMeter works with Java (JVM agent), Python (middleware), and Node.js (middle
 - [Python](#python-flask-fastapi-django) — lightweight middleware, zero required dependencies
 - [Node.js](#nodejs-express-fastify) — `require('cloudmeter')` middleware
 
+```mermaid
+flowchart LR
+    A([Attach agent\nor add middleware]) --> B[Open localhost:7777]
+    B --> C[Start Recording]
+    C --> D[Exercise your app\ntests / manual traffic]
+    D --> E[Stop Recording]
+    E --> F{Budget\nexceeded?}
+    F -- yes --> G[Fix expensive endpoint]
+    G --> C
+    F -- no --> H([Done — share the report])
+```
+
 ---
 
 ## Java (JVM agent)
