@@ -57,7 +57,9 @@ def project(metrics: List[Dict], opts: Optional[Dict] = None) -> Dict:
         by_route.setdefault(m["route"], []).append(m)
 
     projections = [
-        _project_route(route, entries, safe_rps, target_total_rps, target_users, rpu, budget_usd, instances, egress_rate)
+        _project_route(
+            route, entries, safe_rps, target_total_rps, target_users, rpu, budget_usd, instances, egress_rate
+        )
         for route, entries in by_route.items()
     ]
     projections.sort(key=lambda p: p["projected_monthly_cost_usd"], reverse=True)
@@ -90,8 +92,7 @@ def compute_stats(metrics: List[Dict], projections: List[Dict], opts: Optional[D
         hourly_usd = hourly_by_route.get(route, 0.096)  # fallback: m5.large
 
         costs = sorted(
-            (m["duration_ms"] / 1000.0 / 3600.0) * hourly_usd
-            + (m.get("egress_bytes", 0) / GIB_IN_BYTES) * egress_rate
+            (m["duration_ms"] / 1000.0 / 3600.0) * hourly_usd + (m.get("egress_bytes", 0) / GIB_IN_BYTES) * egress_rate
             for m in entries
         )
 
@@ -117,6 +118,7 @@ def compute_stats(metrics: List[Dict], projections: List[Dict], opts: Optional[D
 
 
 # ── internal ──────────────────────────────────────────────────────────────────
+
 
 def _project_route(
     route: str,

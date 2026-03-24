@@ -157,6 +157,7 @@ def _make_handler(
 
 # ── camelCase adapters for the dashboard HTML (which uses JS naming) ──────────
 
+
 def _camel_projections(projs: list) -> list:
     out = []
     for p in projs:
@@ -171,10 +172,7 @@ def _camel_projections(projs: list) -> list:
                 "medianDurationMs": p["median_duration_ms"],
                 "medianCpuMs": p["median_cpu_ms"],
                 "exceedsBudget": p["exceeds_budget"],
-                "costCurve": [
-                    {"users": c["users"], "monthlyCostUsd": c["monthly_cost_usd"]}
-                    for c in p["cost_curve"]
-                ],
+                "costCurve": [{"users": c["users"], "monthlyCostUsd": c["monthly_cost_usd"]} for c in p["cost_curve"]],
             }
         )
     return out
