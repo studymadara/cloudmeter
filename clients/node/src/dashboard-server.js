@@ -120,4 +120,10 @@ function start(opts = {}) {
   })
 }
 
-module.exports = { start }
+// _stop() is for tests only — closes the server and resets state so
+// a new start() call on a different port works within the same process.
+function _stop() {
+  if (_server) { _server.close(); _server = null }
+}
+
+module.exports = { start, _stop }
