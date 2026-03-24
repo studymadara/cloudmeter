@@ -7,18 +7,27 @@
  *   const { cloudMeter } = require('cloudmeter')
  *   app.use(cloudMeter({ provider: 'AWS', targetUsers: 1000 }))
  *
- * Metrics are buffered in-process. The native cost projector and dashboard
- * server will be wired up in the next iteration.
+ * Options:
+ *   provider                  'AWS' | 'GCP' | 'AZURE'  (default: 'AWS')
+ *   region                    string                     (default: 'us-east-1')
+ *   targetUsers               number                     (default: 1000)
+ *   requestsPerUserPerSecond  number                     (default: 1.0)
+ *   budgetUsd                 number                     (default: 0 = disabled)
+ *   port                      number                     (default: 7777)
+ *
+ * On first call, starts the dashboard server at http://127.0.0.1:<port>.
  */
 
-const reporter = require('./reporter')
+const reporter        = require('./reporter')
+const dashboardServer = require('./dashboard-server')
 
 let _started = false
 
-function cloudMeter(_opts = {}) {
+function cloudMeter(opts = {}) {
   if (!_started) {
     _started = true
     reporter.startRecording()
+    dashboardServer.start(opts)
   }
 
   return function cloudMeterMiddleware(req, res, next) {

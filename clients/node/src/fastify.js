@@ -7,18 +7,27 @@
  *   const { cloudMeterPlugin } = require('cloudmeter')
  *   await fastify.register(cloudMeterPlugin, { provider: 'AWS', targetUsers: 1000 })
  *
- * Metrics are buffered in-process. The native cost projector and dashboard
- * server will be wired up in the next iteration.
+ * Options:
+ *   provider                  'AWS' | 'GCP' | 'AZURE'  (default: 'AWS')
+ *   region                    string                     (default: 'us-east-1')
+ *   targetUsers               number                     (default: 1000)
+ *   requestsPerUserPerSecond  number                     (default: 1.0)
+ *   budgetUsd                 number                     (default: 0 = disabled)
+ *   port                      number                     (default: 7777)
+ *
+ * On first registration, starts the dashboard server at http://127.0.0.1:<port>.
  */
 
-const reporter = require('./reporter')
+const reporter        = require('./reporter')
+const dashboardServer = require('./dashboard-server')
 
 let _started = false
 
-async function cloudMeterPlugin(fastify, opts) { // eslint-disable-line no-unused-vars
+async function cloudMeterPlugin(fastify, opts) {
   if (!_started) {
     _started = true
     reporter.startRecording()
+    dashboardServer.start(opts)
   }
 
   fastify.addHook('onResponse', async (request, reply) => {
