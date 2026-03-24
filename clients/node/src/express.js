@@ -15,7 +15,7 @@ const reporter = require('./reporter')
 
 let _started = false
 
-function cloudMeter(opts = {}) {
+function cloudMeter(_opts = {}) {
   if (!_started) {
     _started = true
     reporter.startRecording()

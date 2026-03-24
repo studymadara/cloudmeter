@@ -1,6 +1,6 @@
 'use strict'
 
-const { test, before, after } = require('node:test')
+const { test } = require('node:test')
 const assert  = require('node:assert/strict')
 const http    = require('http')
 const express = require('express')
