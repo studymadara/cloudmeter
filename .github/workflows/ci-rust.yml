@@ -1,13 +1,16 @@
-name: CI — Rust Sidecar & Python/Node Clients
+name: CI — Rust / Python / Node Clients
 
 on:
   push:
     branches: ["main", "develop"]
     paths:
       - "sidecar-rs/**"
+      - "clients/rust/**"
       - "clients/python/**"
       - "clients/node/**"
+      - "test-apps/axum/**"
       - "scripts/smoke-rust.sh"
+      - "scripts/smoke-axum.sh"
       - "scripts/smoke-python.sh"
       - "scripts/smoke-node.sh"
       - ".github/workflows/ci-rust.yml"
@@ -15,9 +18,12 @@ on:
     branches: ["main", "develop"]
     paths:
       - "sidecar-rs/**"
+      - "clients/rust/**"
       - "clients/python/**"
       - "clients/node/**"
+      - "test-apps/axum/**"
       - "scripts/smoke-rust.sh"
+      - "scripts/smoke-axum.sh"
       - "scripts/smoke-python.sh"
       - "scripts/smoke-node.sh"
       - ".github/workflows/ci-rust.yml"
@@ -48,6 +54,38 @@ jobs:
             sidecar-rs/target
           key: ${{ runner.os }}-cargo-lint-${{ hashFiles('sidecar-rs/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-lint-
+
+      - name: Clippy (deny warnings)
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Formatting check
+        run: cargo fmt --check
+
+# ── Rust client (Axum): lint ─────────────────────────────────────────────────
+  lint-rust-client:
+    name: Lint — Rust client (clippy + rustfmt)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clients/rust
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            clients/rust/target
+          key: ${{ runner.os }}-cargo-rust-client-lint-${{ hashFiles('clients/rust/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-rust-client-lint-
 
       - name: Clippy (deny warnings)
         run: cargo clippy --all-targets -- -D warnings
@@ -104,6 +142,56 @@ jobs:
 
       - name: ESLint
         run: npm run lint
+
+# ── Rust client (Axum): test + coverage ──────────────────────────────────────
+  test-rust-client:
+    name: Test & Coverage — Rust client
+    runs-on: ubuntu-latest
+    needs: lint-rust-client
+    defaults:
+      run:
+        working-directory: clients/rust
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            clients/rust/target
+          key: ${{ runner.os }}-cargo-rust-client-test-${{ hashFiles('clients/rust/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-rust-client-test-
+
+      - name: Install cargo-llvm-cov and cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov,cargo-nextest
+
+      - name: Run tests with coverage (nextest)
+        run: cargo llvm-cov nextest --profile ci --no-report
+
+      - name: Coverage — enforce threshold (≥80% lines)
+        run: cargo llvm-cov report --summary-only --fail-under-lines 80
+
+      - name: Coverage — generate lcov for Codecov
+        run: cargo llvm-cov report --lcov --output-path lcov.info
+
+      - name: Upload coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: clients/rust/lcov.info
+          flags: rust-client
+          fail_ci_if_error: false
 
 # ── Rust: test + coverage ─────────────────────────────────────────────────────
   test:
@@ -355,7 +443,7 @@ jobs:
   smoke:
     name: E2E Smoke Tests
     runs-on: ubuntu-latest
-    needs: [build-debug, test-python, test-node]
+    needs: [build-debug, test-python, test-node, test-rust-client]
 
     steps:
       - uses: actions/checkout@v4
@@ -394,6 +482,22 @@ jobs:
 
       - name: Smoke — Node.js client (Express)
         run: bash scripts/smoke-node.sh
+
+      - name: Install Rust stable (for Axum smoke)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo (Axum smoke app)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            test-apps/axum/target
+          key: ${{ runner.os }}-cargo-axum-smoke-${{ hashFiles('test-apps/axum/Cargo.lock', 'clients/rust/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-axum-smoke-
+
+      - name: Smoke — Rust (Axum) client
+        run: bash scripts/smoke-axum.sh
 
       - name: Upload sidecar log on failure
         if: failure()
