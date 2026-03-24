@@ -7,8 +7,8 @@ Starlette populates scope["route"] after routing, which gives us the template.
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from cloudmeter.fastapi import CloudMeterMiddleware
 
+from cloudmeter.fastapi import CloudMeterMiddleware
 
 # ── app fixture ───────────────────────────────────────────────────────────────
 

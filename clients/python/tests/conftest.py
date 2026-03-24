@@ -1,27 +1,31 @@
 """
 Shared fixtures.
 
-All tests mock out _sidecar.start() so no binary download or subprocess
-spawn happens. Each test that cares about reported metrics patches
-cloudmeter._reporter.report directly — the reporter fires synchronously
-from the framework's after-request hook before threading, so no sleep needed.
+The dashboard server is patched out in all tests so no port is bound.
+capture_reports patches _reporter.report directly — synchronous call,
+no threading, no sleep needed.
 """
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, MagicMock
+
+import cloudmeter._reporter as _reporter
 
 
 @pytest.fixture(autouse=True)
-def no_sidecar():
-    """Prevent any test from spawning the real sidecar binary."""
-    with patch("cloudmeter._sidecar.start"), \
-         patch("cloudmeter._sidecar.get_ingest_port", return_value=7778):
+def reset_reporter():
+    """Clear the in-process buffer and stop dashboard server before every test."""
+    _reporter.clear()
+    with patch("cloudmeter._dashboard_server.start"):
         yield
+    _reporter.clear()
 
 
 @pytest.fixture()
 def capture_reports():
     """
     Returns a list that collects every call made to _reporter.report.
+
     Usage:
         def test_foo(capture_reports):
             client.get('/api/users/1')

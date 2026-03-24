@@ -6,9 +6,9 @@ Supports Flask, FastAPI, and Django — one import, one line.
 ```
 [Your Flask/FastAPI/Django app]
         │
-        │  fire-and-forget POST (daemon thread, ~0ms overhead)
+        │  in-process (zero overhead, no sidecar)
         ▼
-[cloudmeter-sidecar]  →  http://localhost:7777
+[cloudmeter buffer]  →  http://localhost:7777
                      "GET /api/export costs $340/month"
 ```
 
@@ -20,8 +20,8 @@ Supports Flask, FastAPI, and Django — one import, one line.
 pip install cloudmeter
 ```
 
-The sidecar binary (~1.4 MB, no runtime required) is downloaded automatically
-on first run and cached at `~/.cloudmeter/bin/`. Nothing else to install.
+Zero required dependencies. No sidecar binary. No external process.
+The cost projector and dashboard run entirely in-process.
 
 ---
 
@@ -85,8 +85,7 @@ All options are optional — defaults work out of the box.
 | `target_users` | `1000` | Concurrent users to project cost at |
 | `requests_per_user_per_second` | `1.0` | Scaling factor for the projection |
 | `budget_usd` | `0.0` | Monthly budget alert per endpoint (0 = off) |
-| `ingest_port` | `7778` | Port the sidecar listens on for metrics |
-| `dashboard_port` | `7777` | Port for the live cost dashboard |
+| `port` | `7777` | Port for the live cost dashboard |
 
 ### Flask — app factory pattern
 
@@ -127,6 +126,19 @@ CLOUDMETER = {
 
 ---
 
+## Dashboard panels
+
+Open **http://localhost:7777** after starting your app:
+
+| Panel | What it shows |
+|---|---|
+| **Cost table** | Each route with projected monthly cost, cost per user, recommended instance |
+| **Cost curve** | Cost vs concurrent-user count chart (100 → 1M users) for any selected route |
+| **Variance panel** | p50/p95/p99 per-request cost; p95/p50 > 1.5× flags N+1 queries or missing indexes |
+| **Recording controls** | Start/stop metric collection; first 30 s is warmup (excluded from projections) |
+
+---
+
 ## How route templates work
 
 CloudMeter reports route templates, not raw paths — so all traffic to
@@ -159,7 +171,7 @@ For each request:
 ## Privacy and security
 
 - Request and response **bodies are never captured** — only route, method, status, duration, and byte counts
-- The sidecar binds to `127.0.0.1` only — not reachable from outside the host
+- The dashboard binds to `127.0.0.1` only — not reachable from outside the host
 - No authentication on the dashboard — do not expose port 7777 publicly
 - No cloud credentials ever required — pricing uses static embedded tables
 
@@ -168,33 +180,30 @@ For each request:
 ## Running tests
 
 ```bash
-pip install pytest pytest-asyncio httpx flask "fastapi[standard]"
+pip install pytest pytest-asyncio httpx flask "fastapi[standard]" django
 cd clients/python
 pytest tests/ -v
 ```
 
-34 tests covering Flask, FastAPI, Django middleware and the reporter.
+86 tests covering Flask, FastAPI, Django middleware, the reporter buffer,
+cost projector, and dashboard server.
 
 ---
 
 ## Troubleshooting
 
-**First run is slow (a few seconds):**
-Normal — the sidecar binary is being downloaded once. Subsequent runs are instant.
-
 **Dashboard shows no data:**
-Make sure your app is receiving real HTTP requests (or use its test client). The
-sidecar only shows endpoints that have been hit.
+Make sure your app is receiving real HTTP requests (or use its test client).
+Endpoints only appear after they have been hit.
 
-**"No binary found for your platform":**
-Your platform may not have a pre-built binary yet. See the
-[releases page](https://github.com/studymadara/cloudmeter/releases) or
-[build from source](https://github.com/studymadara/cloudmeter/tree/main/sidecar-rs).
+**First 30 seconds shows "warmup excluded":**
+Normal — the first 30 s after recording starts are excluded to avoid JIT/cold-start
+noise inflating cost projections. Data will appear automatically after warmup.
 
 **Port conflict (`Address already in use`):**
-Change the ports:
+Change the dashboard port:
 ```python
-CloudMeterFlask(app, ingest_port=17778, dashboard_port=17777)
+CloudMeterFlask(app, port=17777)
 ```
 
 ---
