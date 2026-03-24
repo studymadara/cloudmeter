@@ -6,24 +6,19 @@
  * Usage:
  *   const { cloudMeterPlugin } = require('cloudmeter')
  *   await fastify.register(cloudMeterPlugin, { provider: 'AWS', targetUsers: 1000 })
+ *
+ * Metrics are buffered in-process. The native cost projector and dashboard
+ * server will be wired up in the next iteration.
  */
 
-const sidecar  = require('./sidecar')
 const reporter = require('./reporter')
 
 let _started = false
 
-async function cloudMeterPlugin(fastify, opts) {
-  const { ingestPort = 7778, ...rest } = opts
-  reporter.setPort(ingestPort)
-
+async function cloudMeterPlugin(fastify, opts) { // eslint-disable-line no-unused-vars
   if (!_started) {
     _started = true
-    try {
-      await sidecar.start({ ingestPort, ...rest })
-    } catch (err) {
-      fastify.log.warn(`[cloudmeter] Failed to start sidecar: ${err.message}`)
-    }
+    reporter.startRecording()
   }
 
   fastify.addHook('onResponse', async (request, reply) => {

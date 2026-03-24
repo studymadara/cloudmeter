@@ -30,7 +30,7 @@
   },
   "scripts": {
     "test": "node --test src/__tests__/reporter.test.js src/__tests__/express.test.js src/__tests__/fastify.test.js",
-    "test:coverage": "c8 --reporter=lcov --reporter=text --lines=80 --branches=70 --functions=80 --exclude='src/sidecar.js' node --test src/__tests__/reporter.test.js src/__tests__/express.test.js src/__tests__/fastify.test.js",
+    "test:coverage": "c8 --reporter=lcov --reporter=text --lines=80 --branches=70 --functions=80 node --test src/__tests__/reporter.test.js src/__tests__/express.test.js src/__tests__/fastify.test.js",
     "test:junit": "node --test --test-reporter=./scripts/junit-reporter.mjs --test-reporter-destination=test-results.xml src/__tests__/reporter.test.js src/__tests__/express.test.js src/__tests__/fastify.test.js",
     "lint": "eslint src/"
   }

@@ -8,18 +8,11 @@ const express = require('express')
 /**
  * Express middleware tests.
  *
- * - sidecar.start() is replaced with a no-op so no binary is downloaded.
  * - reporter.report is replaced per-test so we can assert on what was captured.
  * - A real express server is started on a random port; requests are made via http.
  */
 
-// ── mock sidecar before any require of express.js ────────────────────────────
-const sidecar  = require('../sidecar')
 const reporter = require('../reporter')
-
-const originalSidecarStart = sidecar.start
-before(() => { sidecar.start = async () => {} })
-after(() => { sidecar.start = originalSidecarStart })
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
