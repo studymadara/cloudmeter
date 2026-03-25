@@ -4,22 +4,40 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cloudmeter"
-version = "0.1.0"
-description = "Per-endpoint cloud cost monitoring for Python web apps"
+version = "0.5.0"
+description = "Per-endpoint cloud cost attribution for Python web apps — see exactly what each API route costs on AWS, GCP, or Azure"
 readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.8"
-# Zero required dependencies — uses stdlib urllib for everything.
+# Zero required dependencies — uses stdlib only.
 # Framework packages (Flask, FastAPI, Django) are already in the user's env.
 dependencies = []
+keywords = ["cloud", "cost", "monitoring", "aws", "gcp", "azure", "flask", "fastapi", "django", "observability"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP :: WSGI :: Middleware",
+    "Topic :: System :: Monitoring",
+    "Framework :: Flask",
+    "Framework :: Django",
+]
 
 [project.optional-dependencies]
 fastapi = ["starlette>=0.20"]
 django  = ["django>=3.2"]
 
 [project.urls]
-Homepage   = "https://github.com/studymadara/cloudmeter"
-Repository = "https://github.com/studymadara/cloudmeter"
+Homepage      = "https://github.com/studymadara/cloudmeter"
+Repository    = "https://github.com/studymadara/cloudmeter"
+Documentation = "https://github.com/studymadara/cloudmeter/wiki"
+"Bug Tracker" = "https://github.com/studymadara/cloudmeter/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]

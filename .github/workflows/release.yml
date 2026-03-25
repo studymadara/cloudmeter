@@ -143,11 +143,47 @@ jobs:
           name: ${{ matrix.asset }}
           path: ${{ matrix.asset }}
 
+# ── Python client — publish to PyPI ──────────────────────────────────────────
+  publish-python:
+    name: Publish Python client to PyPI
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clients/python
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: pip install build twine
+
+      - name: Stamp version from tag
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          sed -i "s/^version = .*/version = \"${VERSION}\"/" pyproject.toml
+
+      - name: Build sdist + wheel
+        run: python -m build
+
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: twine upload dist/*
+
 # ── Create GitHub Release ─────────────────────────────────────────────────────
   create-release:
     name: Publish GitHub Release
     runs-on: ubuntu-latest
-    needs: [build-agent, build-sidecar]
+    needs: [build-agent, build-sidecar, publish-python]
     permissions:
       contents: write
 
