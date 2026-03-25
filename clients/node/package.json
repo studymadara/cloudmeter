@@ -1,7 +1,7 @@
 {
   "name": "cloudmeter",
-  "version": "0.1.0",
-  "description": "Per-endpoint cloud cost monitoring for Node.js web apps",
+  "version": "0.5.0",
+  "description": "Per-endpoint cloud cost attribution for Node.js web apps — see exactly what each API route costs on AWS, GCP, or Azure",
   "main": "src/index.js",
   "license": "Apache-2.0",
   "engines": {
@@ -11,13 +11,21 @@
     "cloud",
     "cost",
     "monitoring",
+    "aws",
+    "gcp",
+    "azure",
     "express",
     "fastify",
+    "observability",
     "devtools"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/studymadara/cloudmeter"
+    "url": "git+https://github.com/studymadara/cloudmeter.git"
+  },
+  "homepage": "https://github.com/studymadara/cloudmeter#readme",
+  "bugs": {
+    "url": "https://github.com/studymadara/cloudmeter/issues"
   },
   "files": [
     "src/"

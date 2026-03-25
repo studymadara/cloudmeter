@@ -179,11 +179,41 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         run: twine upload dist/*
 
+# ── Node.js client — publish to npm ──────────────────────────────────────────
+  publish-node:
+    name: Publish Node.js client to npm
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clients/node
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Stamp version from tag
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          npm version "${VERSION}" --no-git-tag-version
+
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
 # ── Create GitHub Release ─────────────────────────────────────────────────────
   create-release:
     name: Publish GitHub Release
     runs-on: ubuntu-latest
-    needs: [build-agent, build-sidecar, publish-python]
+    needs: [build-agent, build-sidecar, publish-python, publish-node]
     permissions:
       contents: write
 
