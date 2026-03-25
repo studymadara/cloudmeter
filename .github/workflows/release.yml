@@ -24,7 +24,7 @@ jobs:
           cache: 'gradle'
 
       - name: Validate Gradle wrapper
-        uses: gradle/actions/wrapper-validation@v5
+        uses: gradle/actions/wrapper-validation@v6
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
@@ -111,7 +111,7 @@ jobs:
         run: sudo apt-get install -y musl-tools
 
       - name: Cache cargo registry
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
