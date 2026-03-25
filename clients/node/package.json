@@ -1,5 +1,5 @@
 {
-  "name": "cloudmeter",
+  "name": "cloudmeter-sdk",
   "version": "0.5.0",
   "description": "Per-endpoint cloud cost attribution for Node.js web apps — see exactly what each API route costs on AWS, GCP, or Azure",
   "main": "src/index.js",
