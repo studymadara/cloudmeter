@@ -28,7 +28,8 @@
     "url": "https://github.com/studymadara/cloudmeter/issues"
   },
   "files": [
-    "src/"
+    "src/",
+    "!src/__tests__/"
   ],
   "devDependencies": {
     "c8": "^10.1.2",
