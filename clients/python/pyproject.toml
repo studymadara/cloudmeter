@@ -38,7 +38,6 @@ asyncio_mode = "auto"
 
 [tool.coverage.run]
 source = ["cloudmeter"]
-omit = ["cloudmeter/_sidecar.py"]  # binary download/subprocess — not unit-testable
 
 [tool.coverage.report]
 exclude_lines = [

@@ -1,0 +1,23 @@
+[package]
+name = "cloudmeter"
+version = "0.1.0"
+edition = "2021"
+description = "Per-endpoint cloud cost monitoring for Axum web apps"
+license = "Apache-2.0"
+
+[lib]
+name = "cloudmeter"
+path = "src/lib.rs"
+
+[dependencies]
+axum        = "0.7"
+tower       = "0.4"
+tokio       = { version = "1", features = ["rt", "rt-multi-thread", "net", "macros"] }
+serde       = { version = "1", features = ["derive"] }
+serde_json  = "1"
+http        = "1"
+
+[dev-dependencies]
+tokio   = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", features = ["json"] }
+axum    = "0.7"

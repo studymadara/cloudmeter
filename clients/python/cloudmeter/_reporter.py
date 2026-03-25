@@ -1,15 +1,18 @@
 """
-Fire-and-forget metric reporter.
+In-process metric buffer.
 
-Every call spawns a daemon thread so the user's request thread is never blocked.
-All exceptions are swallowed — this must never crash the host application.
+Replaces the old sidecar HTTP reporter. Metrics are stored in memory
+and consumed by the native cost projector. All calls are synchronous
+and never throw — must never crash the host application.
 """
 
-import json
-import threading
-import urllib.request
+import time
 
-from . import _sidecar
+WARMUP_SECONDS = 30  # first 30 s after start_recording() are tagged as warmup
+
+_buffer: list = []
+_recording: bool = False
+_recording_start: float = 0.0
 
 
 def report(
@@ -19,25 +22,41 @@ def report(
     duration_ms: int,
     egress_bytes: int = 0,
 ) -> None:
-    def _send() -> None:
-        try:
-            payload = json.dumps(
+    try:
+        if _recording:
+            now = time.time()
+            _buffer.append(
                 {
                     "route": route,
                     "method": method.upper(),
                     "status": status,
-                    "durationMs": duration_ms,
-                    "egressBytes": egress_bytes,
+                    "duration_ms": duration_ms,
+                    "egress_bytes": egress_bytes,
+                    "ts": now,
+                    "warmup": now < _recording_start + WARMUP_SECONDS,
                 }
-            ).encode()
-            req = urllib.request.Request(
-                f"http://127.0.0.1:{_sidecar.get_ingest_port()}/api/metrics",
-                data=payload,
-                headers={"Content-Type": "application/json"},
-                method="POST",
             )
-            urllib.request.urlopen(req, timeout=0.5)
-        except Exception:
-            pass  # always silent — never affect the host app
+    except Exception:
+        pass  # always silent
 
-    threading.Thread(target=_send, daemon=True).start()
+
+def start_recording() -> None:
+    global _recording, _recording_start
+    _buffer.clear()
+    _recording = True
+    _recording_start = time.time()
+
+
+def stop_recording() -> None:
+    global _recording
+    _recording = False
+
+
+def get_metrics() -> list:
+    return list(_buffer)
+
+
+def clear() -> None:
+    global _recording
+    _buffer.clear()
+    _recording = False

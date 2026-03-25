@@ -9,9 +9,9 @@ These validate the things your friends will care about immediately:
   - Middleware works with Flask blueprints
 """
 import pytest
-from flask import Flask, Blueprint
-from cloudmeter.flask import CloudMeterFlask
+from flask import Blueprint, Flask
 
+from cloudmeter.flask import CloudMeterFlask
 
 # ── app fixtures ─────────────────────────────────────────────────────────────
 

@@ -4,10 +4,8 @@ Django middleware tests.
 Uses lightweight mock request/response objects — no Django server needed.
 This tests the middleware logic without requiring a full Django project setup.
 """
-import pytest
 import time
-from unittest.mock import patch, MagicMock
-
+from unittest.mock import patch
 
 # ── mock Django objects ───────────────────────────────────────────────────────
 
@@ -36,17 +34,20 @@ class MockResponse:
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
+def _default_response(_req):
+    return MockResponse()
+
+
 def make_middleware(get_response=None):
     """Import fresh to reset _started global between tests."""
-    import importlib
     import cloudmeter.django as django_mod
     django_mod._started = False  # reset between tests
 
     if get_response is None:
-        get_response = lambda req: MockResponse()
+        get_response = _default_response
 
-    with patch("cloudmeter.django._sidecar.start"):
-        return django_mod.CloudMeterMiddleware(get_response)
+    # _dashboard_server.start is already patched by the autouse reset_reporter fixture
+    return django_mod.CloudMeterMiddleware(get_response)
 
 
 # ── route template tests ──────────────────────────────────────────────────────
@@ -115,13 +116,13 @@ def test_reporter_error_does_not_crash(capture_reports):
     assert response.status_code == 200
 
 
-# ── sidecar starts only once ─────────────────────────────────────────────────
+# ── dashboard starts only once ───────────────────────────────────────────────
 
-def test_sidecar_starts_only_once():
+def test_dashboard_starts_only_once():
     import cloudmeter.django as django_mod
     django_mod._started = False
 
-    with patch("cloudmeter.django._sidecar.start") as mock_start:
+    with patch("cloudmeter._dashboard_server.start") as mock_start:
         django_mod.CloudMeterMiddleware(lambda req: MockResponse())
         django_mod.CloudMeterMiddleware(lambda req: MockResponse())
         django_mod.CloudMeterMiddleware(lambda req: MockResponse())
