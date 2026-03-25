@@ -52,6 +52,24 @@ The header shows whether recording is currently active (● Recording) or stoppe
 
 The dashboard polls `/api/projections` every 5 seconds. All numbers update live without a manual reload.
 
+## Data flow
+
+```mermaid
+flowchart LR
+    subgraph JVM Process
+        Req([HTTP Requests]) --> Advice[HttpServletAdvice]
+        SC[ThreadStateCollector\n10ms sampler] --> MS[(MetricsStore)]
+        Advice --> MS
+    end
+
+    MS --> CP[CostProjector\nrecomputes on each poll]
+
+    subgraph Dashboard :7777
+        CP --> API[GET /api/projections]
+        API -->|every 5s| UI[Browser UI\nChart.js]
+    end
+```
+
 ## API endpoints
 
 The dashboard server exposes these HTTP endpoints directly:
@@ -63,8 +81,8 @@ The dashboard server exposes these HTTP endpoints directly:
 | `POST` | `/api/recording/start` | Reset metrics store and start recording |
 | `POST` | `/api/recording/stop` | Stop recording (data retained) |
 
-The `/api/projections` response format is the same as the `JsonReporter` output — see [CLI Usage](CLI-Usage.md) for the schema.
+The `/api/projections` response format is the same as the `JsonReporter` output — see [CLI Usage](CLI-Usage) for the schema.
 
 ## Using the dashboard in CI/CD
 
-While the dashboard is primarily for local development, you can also point the `cloudmeter report` CLI command at it from a CI pipeline. See [CLI Usage](CLI-Usage.md).
+While the dashboard is primarily for local development, you can also point the `cloudmeter report` CLI command at it from a CI pipeline. See [CLI Usage](CLI-Usage).

@@ -6,24 +6,28 @@
  * Usage:
  *   const { cloudMeterPlugin } = require('cloudmeter')
  *   await fastify.register(cloudMeterPlugin, { provider: 'AWS', targetUsers: 1000 })
+ *
+ * Options:
+ *   provider                  'AWS' | 'GCP' | 'AZURE'  (default: 'AWS')
+ *   region                    string                     (default: 'us-east-1')
+ *   targetUsers               number                     (default: 1000)
+ *   requestsPerUserPerSecond  number                     (default: 1.0)
+ *   budgetUsd                 number                     (default: 0 = disabled)
+ *   port                      number                     (default: 7777)
+ *
+ * On first registration, starts the dashboard server at http://127.0.0.1:<port>.
  */
 
-const sidecar  = require('./sidecar')
-const reporter = require('./reporter')
+const reporter        = require('./reporter')
+const dashboardServer = require('./dashboard-server')
 
 let _started = false
 
 async function cloudMeterPlugin(fastify, opts) {
-  const { ingestPort = 7778, ...rest } = opts
-  reporter.setPort(ingestPort)
-
   if (!_started) {
     _started = true
-    try {
-      await sidecar.start({ ingestPort, ...rest })
-    } catch (err) {
-      fastify.log.warn(`[cloudmeter] Failed to start sidecar: ${err.message}`)
-    }
+    reporter.startRecording()
+    dashboardServer.start(opts)
   }
 
   fastify.addHook('onResponse', async (request, reply) => {

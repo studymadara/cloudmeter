@@ -10,11 +10,21 @@ Usage:
     # Or use the Flask extension pattern:
     cm = CloudMeterFlask()
     cm.init_app(app)
+
+Options:
+    provider                      'AWS' | 'GCP' | 'AZURE'  (default 'AWS')
+    region                        str                        (default 'us-east-1')
+    target_users                  int                        (default 1000)
+    requests_per_user_per_second  float                      (default 1.0)
+    budget_usd                    float                      (default 0 = disabled)
+    port                          int                        (default 7777)
+
+On first call, starts the dashboard at http://127.0.0.1:<port>.
 """
 
 import time
 
-from . import _reporter, _sidecar
+from . import _dashboard_server, _reporter
 
 
 class CloudMeterFlask:
@@ -25,7 +35,8 @@ class CloudMeterFlask:
 
     def init_app(self, app, **kwargs):
         opts = {**self._kwargs, **kwargs}
-        _sidecar.start(**opts)
+        _reporter.start_recording()
+        _dashboard_server.start(opts)
 
         app.before_request(_before)
         app.after_request(_after)

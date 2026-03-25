@@ -1,110 +1,104 @@
 'use strict'
 
-const { test, before, after, beforeEach } = require('node:test')
+const { test, beforeEach } = require('node:test')
 const assert = require('node:assert/strict')
-const http   = require('http')
 
 /**
- * Reporter tests.
- * Spins up a real local HTTP server to receive the POSTed metric —
- * no mocking of built-in http, so this proves the real wire format.
+ * Reporter tests — in-process buffer.
+ *
+ * The reporter no longer POSTs to a sidecar; it buffers metrics in memory.
+ * These tests verify the buffer API that the native cost projector will consume.
  */
 
-let server
-let serverPort
-let received = []
+const reporter = require('../reporter')
 
-before(async () => {
-  await new Promise((resolve) => {
-    server = http.createServer((req, res) => {
-      let body = ''
-      req.on('data', chunk => { body += chunk })
-      req.on('end', () => {
-        try { received.push({ method: req.method, path: req.url, body: JSON.parse(body) }) }
-        catch (_) { received.push({ method: req.method, path: req.url, body }) }
-        res.writeHead(202)
-        res.end()
-      })
-    })
-    server.listen(0, '127.0.0.1', () => {
-      serverPort = server.address().port
-      resolve()
-    })
-  })
+beforeEach(() => reporter.clear())
+
+// ── buffering ─────────────────────────────────────────────────────────────────
+
+test('buffers metrics when recording is active', () => {
+  reporter.startRecording()
+  reporter.report({ route: 'GET /api/users/{id}', method: 'GET', status: 200, durationMs: 42, egressBytes: 1024 })
+  const metrics = reporter.getMetrics()
+  assert.equal(metrics.length, 1)
+  assert.equal(metrics[0].route, 'GET /api/users/{id}')
+  assert.equal(metrics[0].method, 'GET')
+  assert.equal(metrics[0].status, 200)
+  assert.equal(metrics[0].durationMs, 42)
+  assert.equal(metrics[0].egressBytes, 1024)
 })
 
-after(() => server.close())
-
-beforeEach(() => { received = [] })
-
-function waitForReport(ms = 200) {
-  return new Promise(resolve => setTimeout(resolve, ms))
-}
-
-// ── tests ─────────────────────────────────────────────────────────────────────
-
-test('posts to /api/metrics with correct JSON shape', async () => {
-  const reporter = require('../reporter')
-  reporter.setPort(serverPort)
-
-  reporter.report({
-    route:       'GET /api/users/{id}',
-    method:      'get',
-    status:      200,
-    durationMs:  42,
-    egressBytes: 1024,
-  })
-
-  await waitForReport()
-
-  assert.equal(received.length, 1)
-  assert.equal(received[0].method, 'POST')
-  assert.equal(received[0].path, '/api/metrics')
-  assert.equal(received[0].body.route, 'GET /api/users/{id}')
-  assert.equal(received[0].body.method, 'GET')   // uppercased
-  assert.equal(received[0].body.status, 200)
-  assert.equal(received[0].body.durationMs, 42)
-  assert.equal(received[0].body.egressBytes, 1024)
+test('drops metrics when recording is not active', () => {
+  // recording is stopped by default (clear() resets it)
+  reporter.report({ route: 'GET /api/test', method: 'GET', status: 200, durationMs: 5 })
+  assert.equal(reporter.getMetrics().length, 0)
 })
 
-test('egressBytes defaults to 0 when omitted', async () => {
-  const reporter = require('../reporter')
-  reporter.setPort(serverPort)
-
-  reporter.report({ route: 'GET /ping', method: 'GET', status: 200, durationMs: 5 })
-  await waitForReport()
-
-  assert.equal(received[0].body.egressBytes, 0)
-})
-
-test('method is uppercased', async () => {
-  const reporter = require('../reporter')
-  reporter.setPort(serverPort)
-
+test('method is uppercased', () => {
+  reporter.startRecording()
   reporter.report({ route: 'POST /api/orders', method: 'post', status: 201, durationMs: 10 })
-  await waitForReport()
-
-  assert.equal(received[0].body.method, 'POST')
+  assert.equal(reporter.getMetrics()[0].method, 'POST')
 })
 
-test('does not throw when sidecar is unreachable', async () => {
-  const reporter = require('../reporter')
-  reporter.setPort(19999) // nothing listening here
+test('egressBytes defaults to 0 when omitted', () => {
+  reporter.startRecording()
+  reporter.report({ route: 'GET /ping', method: 'GET', status: 200, durationMs: 5 })
+  assert.equal(reporter.getMetrics()[0].egressBytes, 0)
+})
 
-  // should not throw
+test('each metric has a ts timestamp', () => {
+  reporter.startRecording()
+  const before = Date.now()
   reporter.report({ route: 'GET /api/test', method: 'GET', status: 200, durationMs: 1 })
-  await waitForReport()
-  // reaching here = pass
+  const after = Date.now()
+  const ts = reporter.getMetrics()[0].ts
+  assert.ok(ts >= before && ts <= after, `ts ${ts} outside [${before}, ${after}]`)
 })
 
-test('report() returns immediately (fire-and-forget)', () => {
-  const reporter = require('../reporter')
-  reporter.setPort(serverPort)
+// ── recording lifecycle ───────────────────────────────────────────────────────
 
+test('startRecording clears previous metrics', () => {
+  reporter.startRecording()
+  reporter.report({ route: 'GET /old', method: 'GET', status: 200, durationMs: 1 })
+  reporter.startRecording()   // clears buffer
+  reporter.report({ route: 'GET /new', method: 'GET', status: 200, durationMs: 1 })
+  const metrics = reporter.getMetrics()
+  assert.equal(metrics.length, 1)
+  assert.equal(metrics[0].route, 'GET /new')
+})
+
+test('stopRecording stops buffering', () => {
+  reporter.startRecording()
+  reporter.report({ route: 'GET /before', method: 'GET', status: 200, durationMs: 1 })
+  reporter.stopRecording()
+  reporter.report({ route: 'GET /after', method: 'GET', status: 200, durationMs: 1 })
+  assert.equal(reporter.getMetrics().length, 1)
+  assert.equal(reporter.getMetrics()[0].route, 'GET /before')
+})
+
+test('getMetrics returns a snapshot, not the live buffer', () => {
+  reporter.startRecording()
+  reporter.report({ route: 'GET /api/a', method: 'GET', status: 200, durationMs: 1 })
+  const snap = reporter.getMetrics()
+  reporter.report({ route: 'GET /api/b', method: 'GET', status: 200, durationMs: 1 })
+  assert.equal(snap.length, 1)           // snapshot unchanged
+  assert.equal(reporter.getMetrics().length, 2)  // live buffer has both
+})
+
+// ── resilience ────────────────────────────────────────────────────────────────
+
+test('report() never throws', () => {
+  reporter.startRecording()
+  // passing garbage should not throw
+  assert.doesNotThrow(() => reporter.report({}))
+  assert.doesNotThrow(() => reporter.report(null))
+})
+
+test('report() returns immediately (synchronous)', () => {
+  reporter.startRecording()
   const start = Date.now()
-  reporter.report({ route: 'GET /api/test', method: 'GET', status: 200, durationMs: 1 })
-  const elapsed = Date.now() - start
-
-  // Should return well under 20ms — the actual HTTP POST happens asynchronously
-  assert.ok(elapsed < 50, `report() took ${elapsed}ms — should be near-instant`)
+  for (let i = 0; i < 1000; i++) {
+    reporter.report({ route: 'GET /api/test', method: 'GET', status: 200, durationMs: 1 })
+  }
+  assert.ok(Date.now() - start < 100, '1000 report() calls should complete in <100ms')
 })

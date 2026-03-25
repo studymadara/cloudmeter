@@ -1,83 +1,48 @@
 #!/usr/bin/env bash
 # smoke-node.sh — end-to-end smoke test for the Node.js CloudMeter client.
 #
-# What this tests (the full chain your friend uses):
+# What this tests:
 #   Express app with cloudMeter middleware
-#     → reporter fires HTTP request to sidecar
-#     → sidecar stores metrics
-#     → /api/projections returns non-zero costs
+#     -> middleware intercepts requests
+#     -> metrics are stored in the in-process buffer
+#     -> buffer contains the correct route/method/status entries
 #
-# Requires: the Rust sidecar binary already built.
+# No sidecar required — the client is now fully native.
 
 set -euo pipefail
 
-INGEST_PORT=17778
-DASHBOARD_PORT=17777
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-SIDECAR="${REPO_ROOT}/sidecar-rs/target/debug/cloudmeter-sidecar"
-SIDECAR_PID=""
 APP_PID=""
 
 fail()    { echo "[FAIL] $*" >&2; exit 1; }
 ok()      { echo "[ OK ] $*"; }
-cleanup() {
-  [[ -n "${APP_PID}" ]]     && kill "${APP_PID}" 2>/dev/null || true
-  [[ -n "${SIDECAR_PID}" ]] && kill "${SIDECAR_PID}" 2>/dev/null || true
-}
+cleanup() { [[ -n "${APP_PID}" ]] && kill "${APP_PID}" 2>/dev/null || true; }
 trap cleanup EXIT
 
 # ── 1. check prerequisites ────────────────────────────────────────────────────
-[[ -x "${SIDECAR}" ]] || fail "Sidecar binary not found at ${SIDECAR}. Run: cd sidecar-rs && cargo build"
 node --version > /dev/null 2>&1 || fail "node not found"
 [[ -d "${REPO_ROOT}/clients/node/node_modules/express" ]] \
   || fail "express not installed. Run: cd clients/node && npm install"
 
-# ── 2. start sidecar ─────────────────────────────────────────────────────────
-echo "--- Starting sidecar ---"
-"${SIDECAR}" \
-  --ingest-port "${INGEST_PORT}" \
-  --dashboard-port "${DASHBOARD_PORT}" \
-  --target-users 500 \
-  > /tmp/cloudmeter-sidecar-smoke-node.log 2>&1 &
-SIDECAR_PID=$!
-
-for i in $(seq 1 10); do
-  STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${INGEST_PORT}/api/status" 2>/dev/null || echo "000")
-  [[ "${STATUS}" == "200" ]] && break
-  [[ "${i}" -eq 10 ]] && fail "Sidecar did not start"
-  sleep 0.5
-done
-ok "Sidecar ready"
-
-# ── 3. start Express app ──────────────────────────────────────────────────────
+# ── 2. start Express app ──────────────────────────────────────────────────────
 echo "--- Starting Express smoke app ---"
 APP_PORT=18080
 
-node - <<JSEOF &
-const express  = require('${REPO_ROOT}/clients/node/node_modules/express')
-const sidecar  = require('${REPO_ROOT}/clients/node/src/sidecar')
-const reporter = require('${REPO_ROOT}/clients/node/src/reporter')
-const { cloudMeter } = require('${REPO_ROOT}/clients/node/src/express')
-
-// Sidecar already running — patch start() to no-op
-sidecar.start = async () => {}
-reporter.setPort(${INGEST_PORT})
-
-const app = express()
-app.use(cloudMeter({ ingestPort: ${INGEST_PORT} }))
-
-app.get('/api/users/:userId',  (req, res) => res.json({ id: req.params.userId }))
-app.get('/api/products',       (req, res) => res.json([1, 2, 3]))
-app.get('/api/reports/pdf',    (req, res) => res.json({ url: 'report.pdf' }))
-
-app.listen(${APP_PORT}, '127.0.0.1', () => {
-  process.stderr.write('[smoke] Express app listening on :${APP_PORT}\n')
-})
-JSEOF
+node -e "
+const express  = require('${REPO_ROOT}/clients/node/node_modules/express');
+const reporter = require('${REPO_ROOT}/clients/node/src/reporter');
+const { cloudMeter } = require('${REPO_ROOT}/clients/node/src/express');
+const app = express();
+app.use(cloudMeter());
+app.get('/api/users/:userId',  (req, res) => res.json({ id: req.params.userId }));
+app.get('/api/products',       (req, res) => res.json([1, 2, 3]));
+app.get('/api/reports/pdf',    (req, res) => res.json({ url: 'report.pdf' }));
+app.get('/__cloudmeter/metrics', (req, res) => res.json(reporter.getMetrics()));
+app.listen(${APP_PORT}, '127.0.0.1');
+" &
 APP_PID=$!
 
-# Wait for app to be ready
 for i in $(seq 1 10); do
   STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${APP_PORT}/api/products" 2>/dev/null || echo "000")
   [[ "${STATUS}" == "200" ]] && break
@@ -86,7 +51,7 @@ for i in $(seq 1 10); do
 done
 ok "Express app ready on :${APP_PORT}"
 
-# ── 4. make 30 requests ───────────────────────────────────────────────────────
+# ── 3. make 30 requests ───────────────────────────────────────────────────────
 echo "--- Making 30 requests across 3 routes ---"
 for i in $(seq 1 10); do
   CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${APP_PORT}/api/users/${i}")
@@ -100,37 +65,31 @@ for i in $(seq 1 10); do
 done
 ok "30 requests sent"
 
-# Give reporter time to POST all metrics
-sleep 0.5
+# ── 4. assert buffer captured metrics ────────────────────────────────────────
+METRICS_JSON=$(curl -s "http://127.0.0.1:${APP_PORT}/__cloudmeter/metrics")
 
-# ── 5. assert sidecar received metrics ───────────────────────────────────────
-TOTAL=$(curl -s "http://127.0.0.1:${INGEST_PORT}/api/status" \
-  | python3 -c "import sys,json; print(json.load(sys.stdin)['totalMetrics'])")
-[[ "${TOTAL}" -ge 30 ]] || fail "Expected >=30 metrics, got ${TOTAL}"
-ok "Sidecar received ${TOTAL} metrics"
+TOTAL=$(echo "${METRICS_JSON}" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))")
+[[ "${TOTAL}" -ge 30 ]] || fail "Expected >=30 metrics in buffer, got ${TOTAL}"
+ok "Buffer captured ${TOTAL} metrics"
 
-# ── 6. assert projections ─────────────────────────────────────────────────────
-PROJ_JSON=$(curl -s "http://127.0.0.1:${DASHBOARD_PORT}/api/projections")
-
-PROJ_COUNT=$(echo "${PROJ_JSON}" | python3 -c "import sys,json; print(len(json.load(sys.stdin)['projections']))")
-[[ "${PROJ_COUNT}" -ge 1 ]] || fail "Expected >=1 projection, got ${PROJ_COUNT}"
-ok "Projection count: ${PROJ_COUNT}"
-
-PROJ_TMP=$(mktemp /tmp/cloudmeter-proj-node.XXXXXX.json)
-echo "${PROJ_JSON}" > "${PROJ_TMP}"
-python3 - "${PROJ_TMP}" <<'EOF'
+echo "${METRICS_JSON}" | python3 -c "
 import sys, json
-with open(sys.argv[1]) as f:
-    d = json.load(f)
-for p in d["projections"]:
-    cost  = p["projected_monthly_cost_usd"]
-    route = p["route"]
-    if cost <= 0:
-        print(f"FAIL: {route} has zero projected cost", file=sys.stderr)
+metrics = json.load(sys.stdin)
+routes  = {m['route'] for m in metrics}
+for expected in ['/api/users/:userId', '/api/products', '/api/reports/pdf']:
+    if not any(expected in r for r in routes):
+        print('FAIL: route ' + expected + ' not found in buffer. Got: ' + str(routes))
         sys.exit(1)
-    print(f"[ OK ] {route}: ${cost:.4f}/month")
-EOF
-rm -f "${PROJ_TMP}"
+    print('[ OK ] route captured: ' + expected)
+for m in metrics:
+    if m['status'] != 200:
+        print('FAIL: unexpected status ' + str(m['status']) + ' for ' + m['route'])
+        sys.exit(1)
+    if m['durationMs'] < 0:
+        print('FAIL: negative durationMs for ' + m['route'])
+        sys.exit(1)
+print('[ OK ] all metrics have status=200 and non-negative durationMs')
+"
 
 echo ""
 echo "=================================="

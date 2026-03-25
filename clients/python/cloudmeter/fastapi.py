@@ -13,7 +13,7 @@ routing scope — no manual normalization needed.
 
 import time
 
-from . import _reporter, _sidecar
+from . import _dashboard_server, _reporter
 
 
 class CloudMeterMiddleware:
@@ -21,7 +21,8 @@ class CloudMeterMiddleware:
 
     def __init__(self, app, **kwargs):
         self._app = app
-        _sidecar.start(**kwargs)
+        _reporter.start_recording()
+        _dashboard_server.start(kwargs)
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":

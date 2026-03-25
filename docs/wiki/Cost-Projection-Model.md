@@ -27,6 +27,31 @@ CloudMeter groups requests into route templates before computing cost. `/api/use
 
 ## The projection formula
 
+```mermaid
+flowchart TD
+    A([Observed requests for a route]) --> B
+
+    B["Step 1 — Median metrics\np50 of cpuCoreSeconds & egressBytes per request"]
+    B --> C
+
+    C["Step 2 — Observed RPS\nrequestCount ÷ recordingDurationSeconds"]
+    C --> D
+
+    D["Step 3 — Scale to target\nscaleFactor = targetTotalRps ÷ observedTotalRps\nprojectedRps = observedRps × scaleFactor"]
+    D --> E
+
+    E["Step 4 — Instance selection\nsmallest instance where vCPU ≥ projectedRps × medianCpuCoreSeconds"]
+    E --> F
+
+    F["Step 5 — Monthly cost\ncompute = instance.hourlyUsd × 730\negress = projectedRps × medianEgressBytes × egressRate\ntotal = compute + egress"]
+    F --> G{12 scale points\ncomplete?}
+
+    G -- no, next scale point --> D
+    G -- yes --> H
+
+    H(["Cost curve — 12 points: 100 → 1M users"])
+```
+
 Given a set of observed requests for a route, cost is projected as follows:
 
 ### Step 1 — Observe median metrics
@@ -119,6 +144,16 @@ Beyond the median, CloudMeter tracks the cost distribution for each route. A hig
 | 3.0×+ | Likely a missing index, full table scan on some key values, or N+1 on specific data shapes |
 
 The cost curve chart shows the p50 projection. Variance is shown in the terminal report footer when the ratio exceeds 1.5×.
+
+## Known measurement limitations
+
+| Scenario | Behaviour | Impact |
+|---|---|---|
+| **Streaming / SSE / chunked responses** | `egressBytes` captures response body size only; TCP framing not included | Egress cost is a floor — actual network cost will be slightly higher |
+| **Reverse proxy path rewriting** | CloudMeter sees the path after rewriting; templates reflect framework registration | Routes may differ from what the client sent if a prefix is stripped upstream |
+| **Very short requests (< 10ms)** | Thread state sampler at 10ms interval may record zero samples | CPU cost recorded as 0; egress-only cost still accurate |
+| **Virtual threads (Java 21 + Spring Boot 3.2+)** | `ThreadMXBean.getThreadInfo()` unreliable for virtual threads | Not supported in v1; use platform threads |
+| **GraalVM native images** | `-javaagent` does not work on native-compiled binaries | Out of scope — use the JVM runtime |
 
 ## Pricing data
 

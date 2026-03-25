@@ -16,7 +16,6 @@
 
 const { cloudMeter }       = require('./express')
 const { cloudMeterPlugin } = require('./fastify')
-const sidecar              = require('./sidecar')
 const reporter             = require('./reporter')
 
-module.exports = { cloudMeter, cloudMeterPlugin, sidecar, reporter }
+module.exports = { cloudMeter, cloudMeterPlugin, reporter }

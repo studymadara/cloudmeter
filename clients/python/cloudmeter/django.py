@@ -19,7 +19,7 @@ Route templates come from Django's URL resolver (e.g. api/users/<int:pk>/).
 
 import time
 
-from . import _reporter, _sidecar
+from . import _dashboard_server, _reporter
 
 _started = False
 
@@ -37,7 +37,8 @@ class CloudMeterMiddleware:
                 opts = getattr(settings, "CLOUDMETER", {})
             except Exception:
                 opts = {}
-            _sidecar.start(**opts)
+            _reporter.start_recording()
+            _dashboard_server.start(opts)
 
     def __call__(self, request):
         start = time.monotonic()

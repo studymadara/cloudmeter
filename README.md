@@ -9,7 +9,7 @@
 [![GitHub release](https://img.shields.io/github/v/release/studymadara/cloudmeter)](https://github.com/studymadara/cloudmeter/releases/latest)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-Per-endpoint cloud cost attribution for Java, Python, and Node.js apps. No code changes, no cloud credentials, no SaaS subscription.
+Per-endpoint cloud cost attribution for Java, Python, Node.js, and Rust apps. No cloud credentials, no SaaS subscription.
 
 ---
 
@@ -60,7 +60,27 @@ const { cloudMeterPlugin } = require('cloudmeter')
 await fastify.register(cloudMeterPlugin, { provider: 'AWS', targetUsers: 1000 })
 ```
 
-The sidecar binary (~1.4 MB) is downloaded automatically on first use. No Rust required.
+## Rust
+
+```toml
+# Cargo.toml
+[dependencies]
+cloudmeter = "0.1"
+```
+
+```rust
+use axum::{Router, routing::get};
+use cloudmeter::{CloudMeter, CloudMeterOptions};
+
+#[tokio::main]
+async fn main() {
+    let cm = CloudMeter::new(CloudMeterOptions::default());
+    let app = Router::new()
+        .route("/api/users/:id", get(handler))
+        .route_layer(cm.layer()); // one line
+    axum::serve(tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap(), app).await.unwrap();
+}
+```
 
 ---
 

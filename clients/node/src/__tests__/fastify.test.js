@@ -1,6 +1,6 @@
 'use strict'
 
-const { test, before, after } = require('node:test')
+const { test } = require('node:test')
 const assert  = require('node:assert/strict')
 const http    = require('http')
 const Fastify = require('fastify')
@@ -8,16 +8,10 @@ const Fastify = require('fastify')
 /**
  * Fastify plugin tests.
  *
- * sidecar.start is replaced with a no-op.
  * reporter.report is replaced per-test to capture calls.
  */
 
-const sidecar  = require('../sidecar')
 const reporter = require('../reporter')
-
-const originalSidecarStart = sidecar.start
-before(() => { sidecar.start = async () => {} })
-after(() => { sidecar.start = originalSidecarStart })
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
