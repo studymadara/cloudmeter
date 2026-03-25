@@ -7,7 +7,7 @@ name = "cloudmeter"
 version = "0.5.0"
 description = "Per-endpoint cloud cost attribution for Python web apps — see exactly what each API route costs on AWS, GCP, or Azure"
 readme = "README.md"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
 requires-python = ">=3.8"
 # Zero required dependencies — uses stdlib only.
 # Framework packages (Flask, FastAPI, Django) are already in the user's env.
@@ -16,7 +16,6 @@ keywords = ["cloud", "cost", "monitoring", "aws", "gcp", "azure", "flask", "fast
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
