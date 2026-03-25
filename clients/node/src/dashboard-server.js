@@ -111,6 +111,10 @@ function start(opts = {}) {
     process.stdout.write(`[cloudmeter] dashboard → http://127.0.0.1:${port}\n`)
   })
 
+  // Prevent the server from keeping the process alive after all tests complete.
+  // In production this has no effect — the app process stays up via its own handles.
+  _server.unref()
+
   _server.on('error', err => {
     if (err.code === 'EADDRINUSE') {
       // Another process (or a second app instance) is already on this port.
@@ -123,7 +127,13 @@ function start(opts = {}) {
 // _stop() is for tests only — closes the server and resets state so
 // a new start() call on a different port works within the same process.
 function _stop() {
-  if (_server) { _server.close(); _server = null }
+  if (_server) {
+    // closeAllConnections() forcefully closes keep-alive connections so the
+    // server drains immediately (available since Node 18.2).
+    _server.closeAllConnections()
+    _server.close()
+    _server = null
+  }
 }
 
 module.exports = { start, _stop }
