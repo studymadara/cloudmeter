@@ -47,16 +47,16 @@ CLOUDMETER  = {"provider": "AWS", "target_users": 1000}
 ## Node.js
 
 ```bash
-npm install cloudmeter
+npm install cloudmeter-sdk
 ```
 
 ```js
 // Express
-const { cloudMeter } = require('cloudmeter')
+const { cloudMeter } = require('cloudmeter-sdk')
 app.use(cloudMeter({ provider: 'AWS', targetUsers: 1000 }))
 
 // Fastify
-const { cloudMeterPlugin } = require('cloudmeter')
+const { cloudMeterPlugin } = require('cloudmeter-sdk')
 await fastify.register(cloudMeterPlugin, { provider: 'AWS', targetUsers: 1000 })
 ```
 

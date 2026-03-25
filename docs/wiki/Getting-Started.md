@@ -1,10 +1,11 @@
 # Getting Started
 
-CloudMeter works with Java (JVM agent), Python (middleware), and Node.js (middleware). Pick your stack below.
+CloudMeter works with Java (JVM agent), Python (middleware), Node.js (middleware), and Rust (Tower middleware). Pick your stack below.
 
 - [Java](#java-jvm-agent) — one flag, no code changes
 - [Python](#python-flask-fastapi-django) — lightweight middleware, zero required dependencies
-- [Node.js](#nodejs-express-fastify) — `require('cloudmeter')` middleware
+- [Node.js](#nodejs-express-fastify) — `require('cloudmeter-sdk')` middleware
+- [Rust](#rust-axum--tower) — Tower `Layer` for Axum
 
 ```mermaid
 flowchart LR
@@ -142,21 +143,16 @@ volumes:
 
 ## Python (Flask, FastAPI, Django)
 
-> **Package status:** `pip install cloudmeter` is **planned** but not yet published to PyPI. For now, install from source (see below).
-
 ### Prerequisites
 
 - Python 3.8+
 - Flask, FastAPI, or Django already in your project
 
-### Install from source
+### Install
 
 ```bash
-git clone https://github.com/studymadara/cloudmeter.git
-pip install -e cloudmeter/clients/python
+pip install cloudmeter
 ```
-
-On first request, the middleware automatically downloads the correct `cloudmeter-sidecar` binary for your platform (~1.4 MB). No Rust required.
 
 ### Flask
 
@@ -203,32 +199,21 @@ See [Python & Node.js Clients](Python-Node-Clients) for all configuration option
 
 ## Node.js (Express, Fastify)
 
-> **Package status:** `npm install cloudmeter` is **planned** but not yet published to npm. For now, install from source (see below).
-
 ### Prerequisites
 
 - Node.js 18+
 - Express or Fastify already in your project
 
-### Install from source
+### Install
 
 ```bash
-git clone https://github.com/studymadara/cloudmeter.git
-npm install --prefix cloudmeter/clients/node
+npm install cloudmeter-sdk
 ```
-
-Then reference the local path in your project:
-
-```bash
-npm install ./cloudmeter/clients/node
-```
-
-On first request, the middleware automatically downloads the correct `cloudmeter-sidecar` binary for your platform (~1.4 MB). No Rust required.
 
 ### Express
 
 ```js
-const { cloudMeter } = require('cloudmeter')
+const { cloudMeter } = require('cloudmeter-sdk')
 
 app.use(cloudMeter({ provider: 'AWS', region: 'us-east-1', targetUsers: 1000 }))
 ```
@@ -236,13 +221,72 @@ app.use(cloudMeter({ provider: 'AWS', region: 'us-east-1', targetUsers: 1000 }))
 ### Fastify
 
 ```js
-const { cloudMeterPlugin } = require('cloudmeter')
+const { cloudMeterPlugin } = require('cloudmeter-sdk')
 
 await fastify.register(cloudMeterPlugin, { provider: 'AWS', region: 'us-east-1', targetUsers: 1000 })
 ```
 
 ### Reading results
 
-Metrics are forwarded to the sidecar process and exposed at [http://localhost:7777](http://localhost:7777) — the same dashboard as the Java agent.
+The dashboard is served in-process at [http://localhost:7777](http://localhost:7777) — the same as the Java agent.
 
 See [Python & Node.js Clients](Python-Node-Clients) for all configuration options.
+
+---
+
+## Rust (Axum / Tower)
+
+### Prerequisites
+
+- Rust stable (1.70+)
+- An Axum application
+
+### Install
+
+```toml
+# Cargo.toml
+[dependencies]
+cloudmeter = "0.5"
+```
+
+Or via cargo:
+
+```bash
+cargo add cloudmeter
+```
+
+### Wire up the middleware
+
+```rust
+use axum::{Router, routing::get};
+use cloudmeter::{CloudMeter, CloudMeterOptions};
+
+#[tokio::main]
+async fn main() {
+    let cm = CloudMeter::new(CloudMeterOptions {
+        provider: "AWS".into(),
+        region: "us-east-1".into(),
+        target_users: 1000,
+        budget: Some(500.0),
+        ..Default::default()
+    });
+
+    let app = Router::new()
+        .route("/api/users/:id", get(get_user))
+        .route("/api/orders", get(list_orders))
+        .route_layer(cm.layer()); // captures route templates
+
+    axum::serve(
+        tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap(),
+        app,
+    ).await.unwrap();
+}
+```
+
+> **Important:** use `.route_layer()`, not `.layer()`. Axum only populates `MatchedPath` (the route template) inside `route_layer`; using `.layer()` will record every endpoint as `UNKNOWN`.
+
+### Reading results
+
+Dashboard at [http://localhost:7777](http://localhost:7777) — spun up in a background thread automatically on first request.
+
+See [Rust Client](Rust-Client) for full configuration options.

@@ -3,7 +3,7 @@
 > **"Your `/api/export/pdf` endpoint costs $340/month."**
 > No APM tool tells you this. CloudMeter does.
 
-CloudMeter attributes cloud cost to each API endpoint — without any code changes. Works with Java (JVM agent), Python (Flask, FastAPI, Django middleware), and Node.js (Express, Fastify middleware).
+CloudMeter attributes cloud cost to each API endpoint — without any code changes. Works with Java (JVM agent), Python (Flask, FastAPI, Django middleware), Node.js (Express, Fastify middleware), and Rust (Axum / Tower middleware).
 
 ---
 
@@ -11,8 +11,9 @@ CloudMeter attributes cloud cost to each API endpoint — without any code chang
 
 | Page | What it covers |
 |---|---|
-| [Getting Started](Getting-Started) | Install and record your first session — Java, Python, and Node.js |
+| [Getting Started](Getting-Started) | Install and record your first session — Java, Python, Node.js, and Rust |
 | [Python & Node.js Clients](Python-Node-Clients) | Full middleware docs for Flask, FastAPI, Django, Express, Fastify |
+| [Rust Client](Rust-Client) | Tower/Axum middleware — installation, configuration, route capture |
 | [Agent Configuration](Agent-Configuration) | All Java agent configuration options and their defaults |
 | [Dashboard](Dashboard) | Using the live cost dashboard — recording, charts, budget alerts |
 | [CLI Usage](CLI-Usage) | `cloudmeter report` command, CI/CD cost gates, exit codes |
