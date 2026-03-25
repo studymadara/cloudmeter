@@ -177,7 +177,7 @@ jobs:
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-        run: twine upload --verbose dist/*
+        run: twine upload --skip-existing dist/*
 
 # ── Node.js client — publish to npm ──────────────────────────────────────────
   publish-node:
